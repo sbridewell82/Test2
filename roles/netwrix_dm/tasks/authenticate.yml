@@ -1,0 +1,23 @@
+---
+- name: Obtain NDM access token
+  uri:
+    url: "https://{{ ndm_host }}:{{ ndm_port }}/GroupIDSecurityService/connect/token"
+    method: POST
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
+    body: >-
+      grant_type=password
+      &username={{ ndm_username | urlencode }}
+      &password={{ ndm_password | urlencode }}
+      &client_id={{ ndm_client_id | urlencode }}
+      &scope={{ ndm_scope | urlencode }}
+    validate_certs: "{{ ndm_validate_certs }}"
+    status_code: 200
+    timeout: 30
+  register: _ndm_token_resp
+  no_log: true
+
+- name: Store access token as fact
+  set_fact:
+    ndm_access_token: "{{ _ndm_token_resp.json.access_token }}"
+  no_log: true

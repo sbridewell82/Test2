@@ -1,0 +1,26 @@
+---
+- name: Validate required variables for adding group members
+  assert:
+    that:
+      - group_identity | length > 0
+      - group_members | length > 0
+    fail_msg: "group_identity and group_members (non-empty list) must be set"
+
+- name: Add members to group in Netwrix Directory Manager
+  uri:
+    url: "https://{{ ndm_host }}:{{ ndm_port }}/GroupIDDataService/api/IdentityStores/{{ ndm_identity_store_id }}/Groups/{{ group_identity | urlencode }}/Members"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ ndm_access_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      Members: "{{ group_members | map('community.general.dict_kv', 'DN') | list }}"
+    validate_certs: "{{ ndm_validate_certs }}"
+    status_code: [200, 201, 204]
+    timeout: 30
+  register: ndm_add_members_result
+
+- name: Confirm members added
+  debug:
+    msg: "Added {{ group_members | length }} member(s) to group '{{ group_identity }}'."

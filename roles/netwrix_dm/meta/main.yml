@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  role_name: netwrix_dm
+  author: ansible-automation
+  description: Netwrix Directory Manager API integration for group and user management
+  min_ansible_version: "2.12"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+dependencies: []

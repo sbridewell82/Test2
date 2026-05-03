@@ -1,0 +1,23 @@
+---
+# Netwrix Directory Manager connection settings
+# Override these via AAP extra vars, job template surveys, or ansible-vault
+ndm_host: "netwrix-dm.example.com"
+ndm_port: 4443
+ndm_validate_certs: true
+
+# OAuth2 token endpoint settings
+ndm_client_id: "groupid_resourceowner"
+ndm_scope: "groupid_webapp"
+
+# Identity store ID - found in NDM admin console under Configuration > Identity Stores
+ndm_identity_store_id: "1"
+
+# Default OU containers (override per playbook or AAP survey)
+ndm_default_group_container: "OU=Groups,DC=example,DC=com"
+ndm_default_user_container:  "OU=Users,DC=example,DC=com"
+
+# Group type defaults
+# GroupScope: 0=DomainLocal, 1=Global, 2=Universal
+# GroupType:  2=Distribution, 8=Security
+ndm_default_group_scope: 1
+ndm_default_group_type: 8

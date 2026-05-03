@@ -1,0 +1,6 @@
+---
+# Encrypt this file with: ansible-vault encrypt group_vars/all/vault.yml
+# In AAP, store these in a Custom Credential Type or use the built-in vault integration.
+#
+# ndm_username: "svc_ansible@example.com"
+# ndm_password: "ChangeMe!"

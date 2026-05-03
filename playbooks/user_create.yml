@@ -1,0 +1,27 @@
+---
+# Create a user account in Netwrix Directory Manager
+#
+# Required extra-vars:
+#   user_first_name       - User's first name
+#   user_last_name        - User's last name
+#   user_sam_account_name - sAMAccountName (logon name)
+#   user_principal_name   - UPN, e.g. jdoe@example.com
+#   user_password         - Initial password (must meet domain complexity policy)
+#   user_container        - LDAP OU path, e.g. "OU=Users,DC=example,DC=com"
+#   ndm_username          - NDM service account username
+#   ndm_password          - NDM service account password
+#   ndm_host              - NDM server hostname/IP
+#   ndm_identity_store_id - Identity store ID from NDM admin console
+#
+# Optional extra-vars:
+#   user_display_name     - Display name (defaults to "FirstName LastName")
+#   user_description      - Account description
+
+- name: Create user in Netwrix Directory Manager
+  hosts: localhost
+  gather_facts: false
+
+  roles:
+    - role: netwrix_dm
+      vars:
+        ndm_task: user_create

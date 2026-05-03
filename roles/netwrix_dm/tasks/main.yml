@@ -1,0 +1,10 @@
+---
+# Include this role with the variable `ndm_task` set to one of:
+#   group_create | group_delete | group_add_members | group_remove_members
+#   group_set_owners | user_create | user_delete
+
+- name: Authenticate to Netwrix Directory Manager
+  include_tasks: authenticate.yml
+
+- name: Execute requested task
+  include_tasks: "{{ ndm_task }}.yml"

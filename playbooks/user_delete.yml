@@ -1,0 +1,18 @@
+---
+# Delete a user account from Netwrix Directory Manager
+#
+# Required extra-vars:
+#   user_identity         - DN or sAMAccountName of the user to delete
+#   ndm_username          - NDM service account username
+#   ndm_password          - NDM service account password
+#   ndm_host              - NDM server hostname/IP
+#   ndm_identity_store_id - Identity store ID from NDM admin console
+
+- name: Delete user from Netwrix Directory Manager
+  hosts: localhost
+  gather_facts: false
+
+  roles:
+    - role: netwrix_dm
+      vars:
+        ndm_task: user_delete
