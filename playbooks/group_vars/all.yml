@@ -1,0 +1,14 @@
+---
+# Default values — override these in Semaphore Extra Variables or Key Store.
+
+ctera_host:     "192.168.1.100"
+ctera_username: "admin"
+
+share_type:            "smb"     # smb | nfs | both  (overrides share_protocols when set)
+share_dir_permissions: 777
+share_access:          "winAclMode"
+share_csc:             "manual"
+share_indexed:         false
+share_protocols:
+  - smb
+share_acl: []
