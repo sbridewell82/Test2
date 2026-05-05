@@ -1,6 +1,6 @@
 ---
 # Connection
-ndm_host: "netwrix-dm.example.com"
+ndm_host: "myid.lmc-aero-up.com"
 ndm_port: 4443
 ndm_validate_certs: true
 ndm_client_id: "groupid_resourceowner"

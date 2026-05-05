@@ -1,7 +1,7 @@
 ---
 # Netwrix Directory Manager connection settings
 # Override these via AAP extra vars, job template surveys, or ansible-vault
-ndm_host: "netwrix-dm.example.com"
+ndm_host: "myid.lmc-aero-up.com"
 ndm_port: 4443
 ndm_validate_certs: true
 

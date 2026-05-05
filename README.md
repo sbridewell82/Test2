@@ -57,7 +57,7 @@ Ansible playbooks for managing groups and users via the **Netwrix Directory Mana
 ### 1. Connection settings (`group_vars/all/vars.yml`)
 
 ```yaml
-ndm_host: "netwrix-dm.example.com"
+ndm_host: "myid.lmc-aero-up.com"
 ndm_port: 4443
 ndm_validate_certs: true
 ndm_identity_store_id: "1"
@@ -105,7 +105,7 @@ In AAP, create a **Custom Credential Type** with these injector fields and attac
 #### Create a group
 ```bash
 ansible-playbook playbooks/group_create.yml \
-  -e "ndm_host=netwrix-dm.example.com" \
+  -e "ndm_host=myid.lmc-aero-up.com" \
   -e "ndm_username=svc_ansible@example.com" \
   -e "ndm_password=secret" \
   -e "ndm_identity_store_id=1" \
