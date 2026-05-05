@@ -8,8 +8,8 @@ ndm_scope: "groupid_webapp"
 ndm_identity_store_id: "1"
 
 # Containers
-ndm_default_group_container: "OU=Groups,DC=example,DC=com"
-ndm_default_user_container: "OU=Users,DC=example,DC=com"
+ndm_default_group_container: "OU=Groups,DC=lmc-aero-up,DC=com"
+ndm_default_user_container: "OU=Users,DC=lmc-aero-up,DC=com"
 
 # Group defaults
 ndm_default_group_scope: 1
@@ -23,7 +23,7 @@ group_scope: "{{ ndm_default_group_scope }}"
 group_type: "{{ ndm_default_group_type }}"
 # group_identity: DN or sAMAccountName of the target group
 group_identity: ""
-# group_members: list of DN strings  e.g. ["CN=jdoe,OU=Users,DC=example,DC=com"]
+# group_members: list of DN strings  e.g. ["CN=jdoe,OU=Users,DC=lmc-aero-up,DC=com"]
 group_members: []
 # group_owners: list of DN strings
 group_owners: []

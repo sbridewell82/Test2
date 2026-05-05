@@ -61,8 +61,8 @@ ndm_host: "myid.lmc-aero-up.com"
 ndm_port: 4443
 ndm_validate_certs: true
 ndm_identity_store_id: "1"
-ndm_default_group_container: "OU=Groups,DC=example,DC=com"
-ndm_default_user_container:  "OU=Users,DC=example,DC=com"
+ndm_default_group_container: "OU=Groups,DC=lmc-aero-up,DC=com"
+ndm_default_user_container:  "OU=Users,DC=lmc-aero-up,DC=com"
 ```
 
 ### 2. Credentials
@@ -110,9 +110,9 @@ ansible-playbook playbooks/group_create.yml \
   -e "ndm_password=secret" \
   -e "ndm_identity_store_id=1" \
   -e "group_name=GRP-AppTeam" \
-  -e "group_container='OU=Groups,DC=example,DC=com'" \
+  -e "group_container='OU=Groups,DC=lmc-aero-up,DC=com'" \
   -e "group_description='Application team group'" \
-  -e '{"group_owners":["CN=jdoe,OU=Users,DC=example,DC=com"]}'
+  -e '{"group_owners":["CN=jdoe,OU=Users,DC=lmc-aero-up,DC=com"]}'
 ```
 
 #### Delete a group
@@ -125,21 +125,21 @@ ansible-playbook playbooks/group_delete.yml \
 ```bash
 ansible-playbook playbooks/group_add_members.yml \
   -e "group_identity=GRP-AppTeam" \
-  -e '{"group_members":["CN=jdoe,OU=Users,DC=example,DC=com","CN=jsmith,OU=Users,DC=example,DC=com"]}'
+  -e '{"group_members":["CN=jdoe,OU=Users,DC=lmc-aero-up,DC=com","CN=jsmith,OU=Users,DC=lmc-aero-up,DC=com"]}'
 ```
 
 #### Remove members from a group
 ```bash
 ansible-playbook playbooks/group_remove_members.yml \
   -e "group_identity=GRP-AppTeam" \
-  -e '{"group_members":["CN=jdoe,OU=Users,DC=example,DC=com"]}'
+  -e '{"group_members":["CN=jdoe,OU=Users,DC=lmc-aero-up,DC=com"]}'
 ```
 
 #### Assign owners to a group
 ```bash
 ansible-playbook playbooks/group_set_owners.yml \
   -e "group_identity=GRP-AppTeam" \
-  -e '{"group_owners":["CN=manager,OU=Users,DC=example,DC=com"]}'
+  -e '{"group_owners":["CN=manager,OU=Users,DC=lmc-aero-up,DC=com"]}'
 ```
 
 ### User Management
@@ -152,7 +152,7 @@ ansible-playbook playbooks/user_create.yml \
   -e "user_sam_account_name=jdoe" \
   -e "user_principal_name=jdoe@example.com" \
   -e "user_password=P@ssw0rd123!" \
-  -e "user_container='OU=Users,DC=example,DC=com'"
+  -e "user_container='OU=Users,DC=lmc-aero-up,DC=com'"
 ```
 
 #### Delete a user

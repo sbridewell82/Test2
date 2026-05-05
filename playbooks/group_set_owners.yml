@@ -5,7 +5,7 @@
 # Required extra-vars:
 #   group_identity    - DN or sAMAccountName of the target group
 #   group_owners      - List of owner DNs (replaces existing owners)
-#                       e.g. ["CN=jdoe,OU=Users,DC=example,DC=com"]
+#                       e.g. ["CN=jdoe,OU=Users,DC=lmc-aero-up,DC=com"]
 #   ndm_username      - NDM service account username
 #   ndm_password      - NDM service account password
 #   ndm_host          - NDM server hostname/IP
