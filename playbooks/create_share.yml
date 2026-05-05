@@ -1,0 +1,90 @@
+---
+# Create a CTERA share via the ctera_share_cli.py script.
+#
+# Run standalone:
+#   ansible-playbook playbooks/create_share.yml \
+#     -e ctera_password=secret \
+#     -e share_name=Finance \
+#     -e share_directory=/main/finance
+#
+# In Semaphore: set these as Extra Variables in the task template,
+# storing ctera_password in the Semaphore Key Store as a secret variable.
+
+- name: Create CTERA Share
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # ── CTERA Edge connection ─────────────────────────────────────────────
+    ctera_host:     "{{ ctera_host     | default('192.168.1.100') }}"
+    ctera_username: "{{ ctera_username | default('admin') }}"
+    # ctera_password must be supplied at runtime (Semaphore Key Store / -e flag)
+
+    # ── Share identity ────────────────────────────────────────────────────
+    share_name:       "{{ share_name      | mandatory }}"
+    share_directory:  "{{ share_directory | mandatory }}"
+    share_comment:    "{{ share_comment   | default('') }}"
+
+    # ── Protocols (space-separated string or YAML list) ───────────────────
+    # Valid values: smb  nfs  afp  ftp  rsync  pc_agent
+    # Example:  "smb nfs"   or   ['smb', 'nfs']
+    share_protocols: "{{ share_protocols | default(['smb']) }}"
+
+    # ── Permissions ───────────────────────────────────────────────────────
+    share_dir_permissions: "{{ share_dir_permissions | default(777) }}"
+    share_access:          "{{ share_access | default('winAclMode') }}"
+    share_csc:             "{{ share_csc    | default('manual') }}"
+    share_indexed:         "{{ share_indexed | default(false) }}"
+
+    # ── ACL entries ───────────────────────────────────────────────────────
+    # List of dicts:  [{principal_type, name, access}, ...]
+    # principal_type: LU (local user)  LG (local group)
+    #                 DU (domain user) DG (domain group)
+    # access:         RW | RO | NA
+    #
+    # Example:
+    #   share_acl:
+    #     - principal_type: DG
+    #       name: "CORP\\Finance"
+    #       access: RW
+    #     - principal_type: DU
+    #       name: alice@corp.com
+    #       access: RO
+    share_acl: "{{ share_acl | default([]) }}"
+
+  tasks:
+    - name: Ensure cterasdk is installed
+      ansible.builtin.pip:
+        name: cterasdk
+        state: present
+
+    - name: Build protocol list string
+      ansible.builtin.set_fact:
+        _protocols_str: >-
+          {{ share_protocols
+             if share_protocols is string
+             else share_protocols | join(' ') }}
+
+    - name: Create share on CTERA Edge
+      ansible.builtin.command:
+        cmd: >
+          python {{ playbook_dir }}/../ctera_share_cli.py
+          --host        "{{ ctera_host }}"
+          --username    "{{ ctera_username }}"
+          --password    "{{ ctera_password }}"
+          --share-name  "{{ share_name }}"
+          --directory   "{{ share_directory }}"
+          --comment     "{{ share_comment }}"
+          --protocols   {{ _protocols_str }}
+          --dir-permissions {{ share_dir_permissions }}
+          --access      {{ share_access }}
+          --csc         {{ share_csc }}
+          {{ '--indexed' if share_indexed else '' }}
+          --acl         '{{ share_acl | to_json }}'
+      register: share_result
+      no_log: true   # hides password from Semaphore logs
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "{{ share_result.stdout }}"

@@ -1,0 +1,44 @@
+---
+# Paste this into Semaphore → Task Template → Extra Variables.
+# Values here become the defaults users see when they run the template.
+# Override per-run using the "Advanced" run dialog in Semaphore.
+#
+# TIP: store ctera_password in the Semaphore Key Store (type: secret),
+# then reference it as an environment variable rather than putting it here.
+
+# ── CTERA Edge connection ─────────────────────────────────────────────────
+ctera_host:     "192.168.1.100"
+ctera_username: "admin"
+# ctera_password comes from the Semaphore Key Store — do NOT put it here.
+
+# ── Share identity ────────────────────────────────────────────────────────
+share_name:      "Finance"
+share_directory: "/main/finance"
+share_comment:   "Finance department share"
+
+# ── Protocols ─────────────────────────────────────────────────────────────
+# Available: smb  nfs  afp  ftp  rsync  pc_agent
+share_protocols:
+  - smb
+  - nfs
+
+# ── Permissions ───────────────────────────────────────────────────────────
+share_dir_permissions: 755
+share_access:  "winAclMode"   # winAclMode | publicMode
+share_csc:     "manual"       # manual | documents | programs | disabled
+share_indexed: false
+
+# ── ACL entries ───────────────────────────────────────────────────────────
+# principal_type: LU (local user)  LG (local group)
+#                 DU (domain user) DG (domain group)
+# access:         RW | RO | NA
+share_acl:
+  - principal_type: "DG"
+    name: "CORP\\Finance"
+    access: "RW"
+  - principal_type: "DG"
+    name: "CORP\\Auditors"
+    access: "RO"
+  - principal_type: "DU"
+    name: "alice@corp.com"
+    access: "RW"
