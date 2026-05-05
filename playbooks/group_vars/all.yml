@@ -1,0 +1,18 @@
+---
+# Default values — override these in Semaphore Extra Variables or Key Store.
+
+onefs_host:     "192.168.1.100"
+onefs_username: "admin"
+onefs_port:     8080
+onefs_zone:     "System"
+
+share_type:        "smb"   # smb | nfs | both
+share_description: ""
+share_permissions: []
+
+nfs_clients:       []
+nfs_rw_clients:    []
+nfs_ro_clients:    []
+nfs_root_clients:  []
+nfs_all_dirs:      false
+nfs_no_root_squash: false

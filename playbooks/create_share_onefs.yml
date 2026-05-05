@@ -1,0 +1,92 @@
+---
+# Create an SMB share, NFS export, or both on a Dell PowerScale cluster
+# via the onefs_share_cli.py script.
+#
+# Run standalone:
+#   ansible-playbook playbooks/create_share_onefs.yml \
+#     -e onefs_password=secret \
+#     -e share_path=/ifs/finance \
+#     -e share_name=Finance
+#
+# In Semaphore: set these as Extra Variables in the task template,
+# storing onefs_password in the Semaphore Key Store as a secret variable.
+
+- name: Create Dell PowerScale Share / NFS Export
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # ── Cluster connection ────────────────────────────────────────────────
+    onefs_host:     "{{ onefs_host     | default('192.168.1.100') }}"
+    onefs_username: "{{ onefs_username | default('admin') }}"
+    onefs_port:     "{{ onefs_port     | default(8080) }}"
+    # onefs_password must be supplied at runtime (Semaphore Key Store / -e flag)
+
+    # ── Access zone ───────────────────────────────────────────────────────
+    onefs_zone: "{{ onefs_zone | default('System') }}"
+
+    # ── Share type ────────────────────────────────────────────────────────
+    # smb   → SMB share only
+    # nfs   → NFS export only
+    # both  → SMB share + NFS export on the same path
+    share_type: "{{ share_type | default('smb') }}"
+
+    # ── Share / export identity ───────────────────────────────────────────
+    share_name:        "{{ share_name        | default('') }}"        # SMB share name
+    share_path:        "{{ share_path        | mandatory }}"          # /ifs/... path
+    share_description: "{{ share_description | default('') }}"
+
+    # ── SMB permissions ───────────────────────────────────────────────────
+    # JSON array of permission entries:
+    #   [{"name": "CORP\\Finance", "type": "group", "permission": "full"}]
+    # type:            user | group | wellknown
+    # permission:      full | change | read
+    # permission_type: allow | deny  (default allow)
+    share_permissions: "{{ share_permissions | default([]) }}"
+
+    # ── NFS client controls ───────────────────────────────────────────────
+    nfs_clients:      "{{ nfs_clients      | default([]) }}"   # mount-allowed hosts (empty = all)
+    nfs_rw_clients:   "{{ nfs_rw_clients   | default([]) }}"   # read-write hosts
+    nfs_ro_clients:   "{{ nfs_ro_clients   | default([]) }}"   # read-only hosts
+    nfs_root_clients: "{{ nfs_root_clients | default([]) }}"   # root-squash exemptions
+    nfs_all_dirs:     "{{ nfs_all_dirs     | default(false) }}"
+    nfs_no_root_squash: "{{ nfs_no_root_squash | default(false) }}"
+
+  tasks:
+    - name: Ensure isilon-sdk is installed
+      ansible.builtin.pip:
+        name: isilon-sdk
+        state: present
+
+    - name: Build NFS client argument strings
+      ansible.builtin.set_fact:
+        _nfs_clients_args: >-
+          {{ ('--nfs-clients '   + (nfs_clients      | join(' '))) if nfs_clients      else '' }}
+          {{ ('--rw-clients '    + (nfs_rw_clients   | join(' '))) if nfs_rw_clients   else '' }}
+          {{ ('--ro-clients '    + (nfs_ro_clients   | join(' '))) if nfs_ro_clients   else '' }}
+          {{ ('--root-clients '  + (nfs_root_clients | join(' '))) if nfs_root_clients else '' }}
+          {{ '--all-dirs'        if nfs_all_dirs      else '' }}
+          {{ '--no-root-squash'  if nfs_no_root_squash else '' }}
+
+    - name: Create share / export on Dell PowerScale
+      ansible.builtin.command:
+        cmd: >
+          python {{ playbook_dir }}/../onefs_share_cli.py
+          --host        "{{ onefs_host }}"
+          --username    "{{ onefs_username }}"
+          --password    "{{ onefs_password }}"
+          --port        {{ onefs_port }}
+          --zone        "{{ onefs_zone }}"
+          --type        {{ share_type }}
+          --path        "{{ share_path }}"
+          --description "{{ share_description }}"
+          {{ ('--share-name "' + share_name + '"') if share_name else '' }}
+          --permissions '{{ share_permissions | to_json }}'
+          {{ _nfs_clients_args }}
+      register: share_result
+      no_log: true   # hides password from Semaphore logs
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "{{ share_result.stdout }}"
