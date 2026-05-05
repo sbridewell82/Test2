@@ -16,11 +16,14 @@ share_name:      "Finance"
 share_directory: "/main/finance"
 share_comment:   "Finance department share"
 
-# ── Protocols ─────────────────────────────────────────────────────────────
-# Available: smb  nfs  afp  ftp  rsync  pc_agent
-share_protocols:
-  - smb
-  - nfs
+# ── Protocol selector ─────────────────────────────────────────────────────
+# Simple picker — choose one:
+#   smb   → SMB/CIFS only
+#   nfs   → NFS only
+#   both  → SMB + NFS
+# For other protocols (afp, ftp, rsync, pc_agent) remove share_type and
+# use share_protocols as a list instead.
+share_type: "smb"
 
 # ── Permissions ───────────────────────────────────────────────────────────
 share_dir_permissions: 755

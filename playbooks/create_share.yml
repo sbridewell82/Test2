@@ -26,9 +26,12 @@
     share_directory:  "{{ share_directory | mandatory }}"
     share_comment:    "{{ share_comment   | default('') }}"
 
-    # ── Protocols (space-separated string or YAML list) ───────────────────
-    # Valid values: smb  nfs  afp  ftp  rsync  pc_agent
-    # Example:  "smb nfs"   or   ['smb', 'nfs']
+    # ── Protocol selector ────────────────────────────────────────────────
+    # share_type is the simple picker: smb | nfs | both
+    # If share_type is set it takes precedence over share_protocols.
+    # share_protocols still accepts a full list for advanced cases:
+    #   smb  nfs  afp  ftp  rsync  pc_agent
+    share_type:      "{{ share_type      | default('') }}"
     share_protocols: "{{ share_protocols | default(['smb']) }}"
 
     # ── Permissions ───────────────────────────────────────────────────────
@@ -59,12 +62,17 @@
         name: cterasdk
         state: present
 
+    - name: Resolve protocol list from share_type or share_protocols
+      ansible.builtin.set_fact:
+        _resolved_protocols: >-
+          {{ {'smb': ['smb'], 'nfs': ['nfs'], 'both': ['smb', 'nfs']}[share_type]
+             if share_type in ['smb', 'nfs', 'both']
+             else (share_protocols if share_protocols is iterable and share_protocols is not string
+                   else share_protocols.split()) }}
+
     - name: Build protocol list string
       ansible.builtin.set_fact:
-        _protocols_str: >-
-          {{ share_protocols
-             if share_protocols is string
-             else share_protocols | join(' ') }}
+        _protocols_str: "{{ _resolved_protocols | join(' ') }}"
 
     - name: Create share on CTERA Edge
       ansible.builtin.command:
