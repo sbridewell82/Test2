@@ -31,7 +31,7 @@ The playbook assigns the following roles to the UMI at subscription scope:
 
 | Resource | Pattern | Example |
 |---|---|---|
-| UMI | `umi-<env>-<purpose>` | `umi-prod-avd` |
+| UMI | `umi-pdev-<mission-plane-name>-iac` | `umi-pdev-avd-iac` |
 | Resource Group | `rg-mp-<mission-plane-name>-umi` | `rg-mp-avd-umi` |
 
 ## Prerequisites
@@ -64,8 +64,7 @@ The service principal used must have sufficient permissions to create managed id
 | `subscription_id` | Yes | Azure subscription ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 | `resource_group` | Yes | Resource group — must follow `rg-mp-<mission-plane-name>-umi` | `rg-mp-avd-umi` |
 | `location` | Yes | Azure region | `uksouth` |
-| `env` | Yes | Environment label (lowercase) | `prod` |
-| `purpose` | Yes | Purpose label (lowercase) | `avd` |
+| `mission_plane_name` | Yes | Mission plane name (lowercase) — used to derive both resource names | `avd` |
 | `assignment_scope` | No | Scope for role assignments, defaults to subscription scope | `/subscriptions/{{ subscription_id }}` |
 
 ## Running via Semaphore
@@ -81,8 +80,7 @@ The service principal used must have sufficient permissions to create managed id
    subscription_id=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
    resource_group=rg-mp-avd-umi
    location=uksouth
-   env=prod
-   purpose=avd
+   mission_plane_name=avd
    ```
 5. **Run the task.** Semaphore will pull the latest playbook from Git and execute it.
 
@@ -93,8 +91,7 @@ ansible-playbook create_umi.yml \
   -e subscription_id=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   -e resource_group=rg-mp-avd-umi \
   -e location=uksouth \
-  -e env=prod \
-  -e purpose=avd
+  -e mission_plane_name=avd
 ```
 
 ## Notes
