@@ -7,7 +7,6 @@ Ansible playbook to create Azure User Managed Identities (UMIs) with the require
 ```
 create_umi.yml       # Main Ansible playbook
 vars/umi.yml         # Variable template
-requirements.yml     # Ansible Galaxy collection dependencies
 ```
 
 ## RBAC roles assigned
@@ -38,11 +37,13 @@ The playbook assigns the following roles to the UMI at subscription scope:
 
 ### Ansible collections
 
-Install the required Azure collection before running:
+The `azure.azcollection` collection must be pre-installed on the Semaphore runner. The runner has no internet access so it cannot pull from Ansible Galaxy at run time. Install it once directly on the runner:
 
 ```bash
-ansible-galaxy collection install -r requirements.yml
+ansible-galaxy collection install azure.azcollection
 ```
+
+If the runner is fully air-gapped, download the collection on a machine with internet access and copy it to the runner manually.
 
 ### Azure authentication
 
