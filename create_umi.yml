@@ -1,0 +1,88 @@
+---
+- name: Create Azure User Managed Identity with RBAC roles
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    umi_name: "umi-{{ env }}-{{ purpose }}"
+    assignment_scope: "/subscriptions/{{ subscription_id }}"
+    rbac_roles:
+      - Application Group Contributor
+      - Backup Operator
+      - Desktop Virtualization Application Group Contributor
+      - Desktop Virtualization Host Pool Contributor
+      - Desktop Virtualization Workspace Contributor
+      - Key Vault Data Access Administrator
+      - "MS-ISR: NetApp Contributor"
+      - "MS-ISR: Virtual Machine Contributor"
+      - Network Contributor
+      - Reader
+      - "MS-ISR: Recovery Services Contributor"
+      - "MS-ISR: Marketplace Ordering Contributor"
+
+  pre_tasks:
+    - name: Validate UMI naming convention (umi-<env>-<purpose>)
+      ansible.builtin.assert:
+        that:
+          - umi_name is match('^umi-[a-z0-9]+-[a-z0-9-]+$')
+        fail_msg: "umi_name '{{ umi_name }}' must match pattern: umi-<env>-<purpose> (lowercase, hyphens only)"
+
+  tasks:
+    - name: Create User Managed Identity
+      azure.azcollection.azure_rm_resource:
+        resource_group: "{{ resource_group }}"
+        provider: ManagedIdentity
+        resource_type: userAssignedIdentities
+        resource_name: "{{ umi_name }}"
+        body:
+          location: "{{ location }}"
+        state: present
+
+    - name: Get UMI details
+      azure.azcollection.azure_rm_resource_info:
+        resource_group: "{{ resource_group }}"
+        provider: ManagedIdentity
+        resource_type: userAssignedIdentities
+        resource_name: "{{ umi_name }}"
+      register: umi_info
+
+    - name: Set UMI principal ID
+      ansible.builtin.set_fact:
+        umi_principal_id: "{{ umi_info.response[0].properties.principalId }}"
+        umi_client_id: "{{ umi_info.response[0].properties.clientId }}"
+
+    - name: Look up role definitions
+      azure.azcollection.azure_rm_roledefinition_info:
+        scope: "/subscriptions/{{ subscription_id }}"
+        role_name: "{{ item }}"
+      loop: "{{ rbac_roles }}"
+      register: role_def_results
+
+    - name: Warn about roles not found
+      ansible.builtin.debug:
+        msg: "WARNING: Role '{{ item.item }}' was not found in subscription {{ subscription_id }} — skipping."
+      loop: "{{ role_def_results.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.roledefinitions | length == 0
+
+    - name: Assign RBAC roles to UMI
+      azure.azcollection.azure_rm_roleassignment:
+        scope: "{{ assignment_scope }}"
+        assignee_object_id: "{{ umi_principal_id }}"
+        role_definition_id: "{{ item.roledefinitions[0].id }}"
+        state: present
+      loop: "{{ role_def_results.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.roledefinitions | length > 0
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - "UMI Name      : {{ umi_name }}"
+          - "Resource Group: {{ resource_group }}"
+          - "Principal ID  : {{ umi_principal_id }}"
+          - "Client ID     : {{ umi_client_id }}"
+          - "Roles assigned: {{ role_def_results.results | selectattr('roledefinitions', 'ne', []) | map(attribute='item') | list }}"

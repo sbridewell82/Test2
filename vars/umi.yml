@@ -1,0 +1,11 @@
+---
+# Required — pass these as Semaphore extra vars or set here
+subscription_id: ""        # Azure subscription ID
+resource_group: ""         # Resource group to create the UMI in
+location: "uksouth"        # Azure region
+env: ""                    # Environment label  e.g. prod, dev, uat
+purpose: ""                # Purpose label      e.g. avd, backup
+
+# Derived — do not override unless intentional
+# umi_name      = "umi-{{ env }}-{{ purpose }}"
+# assignment_scope = "/subscriptions/{{ subscription_id }}"
