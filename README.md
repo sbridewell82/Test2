@@ -46,16 +46,14 @@ ansible-galaxy collection install -r requirements.yml
 
 ### Azure authentication
 
-The playbook authenticates to Azure using environment variables. These should be set in Semaphore as an environment or injected via a vault:
+The playbook authenticates to Azure using a User Assigned Managed Identity (UAMI). The following are hardcoded in the playbook and require no Semaphore environment configuration:
 
-| Variable | Description |
+| Variable | Value |
 |---|---|
-| `AZURE_SUBSCRIPTION_ID` | Target Azure subscription ID |
-| `AZURE_CLIENT_ID` | Service principal client ID |
-| `AZURE_SECRET` | Service principal secret |
-| `AZURE_TENANT` | Azure tenant ID |
+| `AZURE_AUTH_SOURCE` | `msi` |
+| `AZURE_CLIENT_ID` | `e8ea2483-8b75-4856-ae04-a53eaa9ef940` |
 
-The service principal used must have sufficient permissions to create managed identities and assign RBAC roles in the target subscription.
+The Semaphore runner must have the UAMI (`e8ea2483-8b75-4856-ae04-a53eaa9ef940`) assigned to it, and that identity must have sufficient permissions to create resource groups, managed identities, and assign RBAC roles in the target subscription.
 
 ## Variables
 
@@ -70,11 +68,10 @@ The service principal used must have sufficient permissions to create managed id
 ## Running via Semaphore
 
 1. **Add this repository** as a Git repository in Semaphore.
-2. **Create an environment** in Semaphore containing the four `AZURE_*` variables above.
+2. **Ensure the Semaphore runner** has the UAMI `e8ea2483-8b75-4856-ae04-a53eaa9ef940` assigned. No secrets or environment variables are required — authentication is handled via managed identity.
 3. **Create a task template** with:
    - Repository: this repo
    - Playbook: `create_umi.yml`
-   - Environment: the environment created above
 4. **Add the following surveys** to the task template so operators are prompted at run time:
 
    | Survey question | Variable | Type |

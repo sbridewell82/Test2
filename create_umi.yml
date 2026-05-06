@@ -4,6 +4,10 @@
   connection: local
   gather_facts: false
 
+  environment:
+    AZURE_AUTH_SOURCE: msi
+    AZURE_CLIENT_ID: "e8ea2483-8b75-4856-ae04-a53eaa9ef940"
+
   vars:
     umi_name: "umi-pdev-{{ mission_plane_name }}-iac"
     location: "usgovvirginia"
