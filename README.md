@@ -1,4 +1,4 @@
-# Test2
+# create-umi-script
 
 Ansible playbook to create Azure User Managed Identities (UMIs) with the required RBAC roles. Designed to be run via Semaphore pulling from this Git repository.
 
