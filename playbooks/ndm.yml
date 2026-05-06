@@ -1,0 +1,18 @@
+---
+# Single-template dispatcher for all NDM operations.
+# Set ndm_task via the Semaphore survey to choose the operation.
+#
+# ndm_task options:
+#   group_create | group_delete | group_add_members
+#   group_remove_members | group_set_owners
+#   user_create | user_delete
+#
+# Supply only the extra-vars relevant to the chosen operation.
+# See README for the full variable reference.
+
+- name: Netwrix Directory Manager – run operation
+  hosts: localhost
+  gather_facts: false
+
+  roles:
+    - role: netwrix_dm

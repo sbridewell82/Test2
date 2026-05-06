@@ -213,40 +213,51 @@ Create an environment under **Environment** (optional – only needed for overri
 
 Non-sensitive connection settings (`ndm_host`, `ndm_port`, `ndm_validate_certs`) are already set in `group_vars/all/vars.yml` and do not need to be repeated here.
 
-### 5. Task Templates
+### 5. Task Template
 
-Create one template per operation. Common settings for all templates:
+Create a **single** template that covers all operations:
 
 | Field | Value |
 |---|---|
+| Name | `NDM – Directory Manager` |
+| Playbook | `playbooks/ndm.yml` |
 | Repository | `netwrix-dm-ansible` |
 | Inventory | `localhost` |
 | Vault Password | `vault-password` (from Key Store) |
 | Environment | *(environment created above)* |
 
-| Template Name | Playbook |
+### 6. Survey
+
+Enable **"Survey"** on the template and add the following questions. Users fill in only the fields relevant to their chosen operation — the playbook ignores unused ones.
+
+| Variable | Label | Type | Required | Notes |
+|---|---|---|---|---|
+| `ndm_task` | Operation | Dropdown | Yes | See options below |
+| `group_name` | Group Name | Text | No | Required for `group_create` |
+| `group_identity` | Group Identity | Text | No | DN or sAMAccountName – required for delete/add/remove/set-owners |
+| `group_container` | Group OU Container | Text | No | LDAP OU path for `group_create` |
+| `group_description` | Group Description | Text | No | Optional for `group_create` |
+| `group_members` | Group Members (JSON) | Text | No | JSON list of DNs – required for add/remove |
+| `group_owners` | Group Owners (JSON) | Text | No | JSON list of DNs – required for `group_create` / `group_set_owners` |
+| `user_first_name` | First Name | Text | No | Required for `user_create` |
+| `user_last_name` | Last Name | Text | No | Required for `user_create` |
+| `user_sam_account_name` | Username (sAMAccountName) | Text | No | Required for `user_create` |
+| `user_principal_name` | UPN | Text | No | Required for `user_create`, e.g. `jdoe@lmc-aero-up.com` |
+| `user_password` | Initial Password | Password | No | Required for `user_create` |
+| `user_container` | User OU Container | Text | No | LDAP OU path for `user_create` |
+| `user_identity` | User Identity | Text | No | DN or sAMAccountName – required for `user_delete` |
+
+**`ndm_task` dropdown options:**
+
+| Value | Description |
 |---|---|
-| NDM – Create Group | `playbooks/group_create.yml` |
-| NDM – Delete Group | `playbooks/group_delete.yml` |
-| NDM – Add Group Members | `playbooks/group_add_members.yml` |
-| NDM – Remove Group Members | `playbooks/group_remove_members.yml` |
-| NDM – Set Group Owners | `playbooks/group_set_owners.yml` |
-| NDM – Create User | `playbooks/user_create.yml` |
-| NDM – Delete User | `playbooks/user_delete.yml` |
-
-### 6. Template Surveys (Extra Variables per run)
-
-Enable **"Allow extra variables"** on each template and prompt for the relevant vars at run time:
-
-| Template | Prompt for |
-|---|---|
-| Create Group | `group_name`, `group_container`, `group_description`, `group_owners` |
-| Delete Group | `group_identity` |
-| Add Members | `group_identity`, `group_members` |
-| Remove Members | `group_identity`, `group_members` |
-| Set Owners | `group_identity`, `group_owners` |
-| Create User | `user_first_name`, `user_last_name`, `user_sam_account_name`, `user_principal_name`, `user_password`, `user_container` |
-| Delete User | `user_identity` |
+| `group_create` | Create a new group |
+| `group_delete` | Delete a group |
+| `group_add_members` | Add members to a group |
+| `group_remove_members` | Remove members from a group |
+| `group_set_owners` | Assign owners to a group |
+| `user_create` | Create a new user |
+| `user_delete` | Delete a user |
 
 ---
 
