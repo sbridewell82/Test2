@@ -35,17 +35,13 @@ The playbook assigns the following roles to the UMI at subscription scope:
 
 ## Prerequisites
 
-### Ansible collections
+### Prerequisites
 
-The `azure.azcollection` collection must be pre-installed on the Semaphore runner. The runner has no internet access so it cannot pull from Ansible Galaxy at run time. Install it once directly on the runner:
+The Semaphore runner requires:
 
-```bash
-ansible-galaxy collection install azure.azcollection
-```
-
-If the runner is fully air-gapped, download the collection on a machine with internet access and copy it to the runner manually.
-
-### Azure authentication
+- **Azure CLI** (`az`) installed and accessible
+- **Azure Government cloud** — the playbook sets `az cloud set --name AzureUSGovernment` automatically
+- No Ansible collections required — the playbook uses `az` CLI commands directly, avoiding any `azure.azcollection` dependency
 
 The playbook authenticates to Azure using a User Assigned Managed Identity (UAMI). The following are hardcoded in the playbook and require no Semaphore environment configuration:
 
