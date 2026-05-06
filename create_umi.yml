@@ -30,6 +30,12 @@
         fail_msg: "umi_name '{{ umi_name }}' must match pattern: umi-pdev-<mission-plane-name>-iac (lowercase, hyphens only)"
 
   tasks:
+    - name: Create resource group if it does not exist
+      azure.azcollection.azure_rm_resourcegroup:
+        name: "{{ resource_group }}"
+        location: "{{ location }}"
+        state: present
+
     - name: Create User Managed Identity
       azure.azcollection.azure_rm_resource:
         resource_group: "{{ resource_group }}"
