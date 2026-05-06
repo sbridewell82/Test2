@@ -53,6 +53,7 @@
     # ------------------------------------------------------------
     - name: Create resource group if it does not exist
       ansible.builtin.shell: |
+        set -e
         RG_EXISTS=$(az group exists --name "{{ resource_group }}")
         if [ "$RG_EXISTS" = "false" ]; then
           az group create --name "{{ resource_group }}" --location "{{ location }}" > /dev/null
