@@ -60,9 +60,10 @@ The Semaphore runner must have the UAMI (`e8ea2483-8b75-4856-ae04-a53eaa9ef940`)
 | Variable | Required | Description | Example |
 |---|---|---|---|
 | `subscription_id` | Survey | Azure subscription ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `resource_group` | Survey | Resource group — must follow `rg-mp-<mission-plane-name>-umi` | `rg-mp-avd-umi` |
-| `mission_plane_name` | Survey | Mission plane name (lowercase) — used to derive the UMI name | `avd` |
-| `location` | Fixed | Always `usgovvirginia` — set in the playbook, not a survey input | `usgovvirginia` |
+| `mission_plane_name` | Survey | Mission plane name (lowercase) — drives all derived resource names | `avd` |
+| `resource_group` | Derived | `rg-mp-{{ mission_plane_name }}-umi` — set automatically | `rg-mp-avd-umi` |
+| `umi_name` | Derived | `umi-pdev-{{ mission_plane_name }}-iac` — set automatically | `umi-pdev-avd-iac` |
+| `location` | Fixed | Always `usgovvirginia` — set in the playbook | `usgovvirginia` |
 | `assignment_scope` | No | Scope for role assignments, defaults to subscription scope | `/subscriptions/{{ subscription_id }}` |
 
 ## Running via Semaphore
@@ -77,10 +78,9 @@ The Semaphore runner must have the UAMI (`e8ea2483-8b75-4856-ae04-a53eaa9ef940`)
    | Survey question | Variable | Type |
    |---|---|---|
    | Subscription ID | `subscription_id` | Text |
-   | Resource Group | `resource_group` | Text |
    | Mission Plane Name | `mission_plane_name` | Text |
 
-   > `location` is hardcoded to `usgovvirginia` in the playbook and does not need a survey.
+   > `resource_group`, `umi_name`, and `location` are all derived automatically from `mission_plane_name` — no additional surveys needed.
 
 5. **Run the task.** Semaphore will prompt for the three survey values, pull the latest playbook from Git, and execute it.
 
@@ -89,7 +89,6 @@ The Semaphore runner must have the UAMI (`e8ea2483-8b75-4856-ae04-a53eaa9ef940`)
 ```bash
 ansible-playbook create_umi.yml \
   -e subscription_id=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
-  -e resource_group=rg-mp-avd-umi \
   -e mission_plane_name=avd
 ```
 
