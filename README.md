@@ -27,15 +27,12 @@ The playbook assigns the following roles to the UMI at subscription scope:
 - MS-ISR: Recovery Services Contributor
 - MS-ISR: Marketplace Ordering Contributor
 
-## Naming convention
+## Naming conventions
 
-UMI names are derived from two variables and must follow this pattern:
-
-```
-umi-<env>-<purpose>
-```
-
-Examples: `umi-prod-avd`, `umi-dev-backup`, `umi-uat-netapp`
+| Resource | Pattern | Example |
+|---|---|---|
+| UMI | `umi-<env>-<purpose>` | `umi-prod-avd` |
+| Resource Group | `rg-mp-<mission-plane-name>-umi` | `rg-mp-avd-umi` |
 
 ## Prerequisites
 
@@ -65,7 +62,7 @@ The service principal used must have sufficient permissions to create managed id
 | Variable | Required | Description | Example |
 |---|---|---|---|
 | `subscription_id` | Yes | Azure subscription ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `resource_group` | Yes | Resource group to create the UMI in | `rg-identity-prod` |
+| `resource_group` | Yes | Resource group — must follow `rg-mp-<mission-plane-name>-umi` | `rg-mp-avd-umi` |
 | `location` | Yes | Azure region | `uksouth` |
 | `env` | Yes | Environment label (lowercase) | `prod` |
 | `purpose` | Yes | Purpose label (lowercase) | `avd` |
@@ -82,7 +79,7 @@ The service principal used must have sufficient permissions to create managed id
 4. **Add extra variables** for each run (or set defaults in the template):
    ```
    subscription_id=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-   resource_group=rg-identity-prod
+   resource_group=rg-mp-avd-umi
    location=uksouth
    env=prod
    purpose=avd
@@ -94,7 +91,7 @@ The service principal used must have sufficient permissions to create managed id
 ```bash
 ansible-playbook create_umi.yml \
   -e subscription_id=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
-  -e resource_group=rg-identity-prod \
+  -e resource_group=rg-mp-avd-umi \
   -e location=uksouth \
   -e env=prod \
   -e purpose=avd

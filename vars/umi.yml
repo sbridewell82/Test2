@@ -1,7 +1,7 @@
 ---
 # Required — pass these as Semaphore extra vars or set here
 subscription_id: ""        # Azure subscription ID
-resource_group: ""         # Resource group to create the UMI in
+resource_group: ""         # Resource group — naming convention: rg-mp-<mission-plane-name>-umi  e.g. rg-mp-avd-umi
 location: "uksouth"        # Azure region
 env: ""                    # Environment label  e.g. prod, dev, uat
 purpose: ""                # Purpose label      e.g. avd, backup
