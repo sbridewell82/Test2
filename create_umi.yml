@@ -72,7 +72,7 @@
     # ------------------------------------------------------------
     # User Managed Identity
     # ------------------------------------------------------------
-    - name: Create User Managed Identity
+    - name: Create User Managed Identity and get details
       ansible.builtin.shell: |
         EXISTING=$(az identity show \
           --name "{{ umi_name }}" \
@@ -83,27 +83,22 @@
             --name "{{ umi_name }}" \
             --resource-group "{{ resource_group }}" \
             --location "{{ location }}" > /dev/null
-          echo "CREATED"
+          echo "CREATED" >&2
         else
-          echo "EXISTING"
+          echo "EXISTING" >&2
         fi
-      register: umi_create_result
-      changed_when: "'CREATED' in umi_create_result.stdout"
-
-    - name: Get UMI details
-      ansible.builtin.command: >
-        az identity show
-        --name "{{ umi_name }}"
-        --resource-group "{{ resource_group }}"
-        --query "{principalId:principalId, clientId:clientId}"
-        --output json
-      register: umi_info
-      changed_when: false
+        az identity show \
+          --name "{{ umi_name }}" \
+          --resource-group "{{ resource_group }}" \
+          --query "{principalId:principalId, clientId:clientId}" \
+          --output json
+      register: umi_result
+      changed_when: "'CREATED' in umi_result.stderr"
 
     - name: Set UMI facts
       ansible.builtin.set_fact:
-        umi_principal_id: "{{ (umi_info.stdout | from_json).principalId }}"
-        umi_client_id_new: "{{ (umi_info.stdout | from_json).clientId }}"
+        umi_principal_id: "{{ (umi_result.stdout | from_json).principalId }}"
+        umi_client_id_new: "{{ (umi_result.stdout | from_json).clientId }}"
 
     # ------------------------------------------------------------
     # RBAC role assignments
