@@ -2,7 +2,7 @@
 # Required — pass these as Semaphore extra vars or set here
 subscription_id: ""        # Azure subscription ID
 resource_group: ""         # Naming convention: rg-mp-<mission-plane-name>-umi  e.g. rg-mp-avd-umi
-location: "uksouth"        # Azure region
+location: "usgovvirginia" # Fixed — Azure US Government Virginia
 mission_plane_name: ""     # Mission plane name  e.g. avd, netapp, backup
 
 # Derived — do not override unless intentional

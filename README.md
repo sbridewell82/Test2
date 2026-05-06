@@ -61,10 +61,10 @@ The service principal used must have sufficient permissions to create managed id
 
 | Variable | Required | Description | Example |
 |---|---|---|---|
-| `subscription_id` | Yes | Azure subscription ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `resource_group` | Yes | Resource group — must follow `rg-mp-<mission-plane-name>-umi` | `rg-mp-avd-umi` |
-| `location` | Yes | Azure region | `uksouth` |
-| `mission_plane_name` | Yes | Mission plane name (lowercase) — used to derive both resource names | `avd` |
+| `subscription_id` | Survey | Azure subscription ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `resource_group` | Survey | Resource group — must follow `rg-mp-<mission-plane-name>-umi` | `rg-mp-avd-umi` |
+| `mission_plane_name` | Survey | Mission plane name (lowercase) — used to derive the UMI name | `avd` |
+| `location` | Fixed | Always `usgovvirginia` — set in the playbook, not a survey input | `usgovvirginia` |
 | `assignment_scope` | No | Scope for role assignments, defaults to subscription scope | `/subscriptions/{{ subscription_id }}` |
 
 ## Running via Semaphore
@@ -75,14 +75,17 @@ The service principal used must have sufficient permissions to create managed id
    - Repository: this repo
    - Playbook: `create_umi.yml`
    - Environment: the environment created above
-4. **Add extra variables** for each run (or set defaults in the template):
-   ```
-   subscription_id=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-   resource_group=rg-mp-avd-umi
-   location=uksouth
-   mission_plane_name=avd
-   ```
-5. **Run the task.** Semaphore will pull the latest playbook from Git and execute it.
+4. **Add the following surveys** to the task template so operators are prompted at run time:
+
+   | Survey question | Variable | Type |
+   |---|---|---|
+   | Subscription ID | `subscription_id` | Text |
+   | Resource Group | `resource_group` | Text |
+   | Mission Plane Name | `mission_plane_name` | Text |
+
+   > `location` is hardcoded to `usgovvirginia` in the playbook and does not need a survey.
+
+5. **Run the task.** Semaphore will prompt for the three survey values, pull the latest playbook from Git, and execute it.
 
 ## Running manually
 
@@ -90,7 +93,6 @@ The service principal used must have sufficient permissions to create managed id
 ansible-playbook create_umi.yml \
   -e subscription_id=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   -e resource_group=rg-mp-avd-umi \
-  -e location=uksouth \
   -e mission_plane_name=avd
 ```
 
