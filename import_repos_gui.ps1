@@ -37,38 +37,26 @@ function Invoke-GitLabApi {
     Invoke-RestMethod @params
 }
 
-# Resolves a namespace string to a numeric ID.
-# Accepts: plain integer, path, or subgroup path.
 function Resolve-NamespaceId {
     param([string]$Ns, [string]$BaseUrl, [string]$Token)
-
-    # If the user typed a plain number, use it directly
     if ($Ns -match '^\d+$') { return [int]$Ns }
-
     $leaf = $Ns.Split('/')[-1]
-
-    # Try /namespaces?search=
     try {
         $r = Invoke-GitLabApi GET "/namespaces?search=$([Uri]::EscapeDataString($leaf))" -BaseUrl $BaseUrl -Token $Token
         $m = $r | Where-Object { $_.full_path -eq $Ns } | Select-Object -First 1
         if ($m) { return $m.id }
     } catch { }
-
-    # Try /groups?search=
     try {
         $r = Invoke-GitLabApi GET "/groups?search=$([Uri]::EscapeDataString($leaf))" -BaseUrl $BaseUrl -Token $Token
         $m = $r | Where-Object { $_.full_path -eq $Ns } | Select-Object -First 1
         if ($m) { return $m.id }
     } catch { }
-
-    # Try direct group lookup via Invoke-WebRequest (avoids %2F decode bug)
     try {
         $encoded = $Ns -replace '/', '%2F'
         $uri     = "$($BaseUrl.TrimEnd('/'))/api/v4/groups/$encoded"
         $g = Invoke-WebRequest -Uri $uri -Headers @{ 'PRIVATE-TOKEN' = $Token } -UseBasicParsing | ConvertFrom-Json
         if ($g.id) { return $g.id }
     } catch { }
-
     return $null
 }
 
@@ -127,7 +115,7 @@ $form.Controls.Add((New-Label 'GitLab URL' $pad 96 $lw))
 $txtUrl = New-TextBox $tx 94 $tw $DefaultGitLabUrl
 $form.Controls.Add($txtUrl)
 
-# Namespace (path or numeric ID)
+# Namespace
 $form.Controls.Add((New-Label 'Namespace' $pad 134 $lw))
 $txtNs = New-TextBox $tx 132 ($tw - 90) $DefaultNamespace
 $form.Controls.Add($txtNs)
@@ -148,18 +136,26 @@ $txtToken.PasswordChar = '*'
 $txtToken.Text         = if ($env:GITLAB_TOKEN) { $env:GITLAB_TOKEN } else { $DefaultToken }
 $form.Controls.Add($txtToken)
 
-# Visibility + Import button
+# Visibility + Import button + Test button
 $form.Controls.Add((New-Label 'Visibility' $pad 210 $lw))
 $cboVis = New-Object System.Windows.Forms.ComboBox
 $cboVis.Location      = New-Object System.Drawing.Point($tx, 208)
-$cboVis.Size          = New-Object System.Drawing.Size(140, 24)
+$cboVis.Size          = New-Object System.Drawing.Size(120, 24)
 $cboVis.DropDownStyle = 'DropDownList'
 @('private','internal','public') | ForEach-Object { $cboVis.Items.Add($_) | Out-Null }
 $cboVis.SelectedIndex = 0
 $form.Controls.Add($cboVis)
+
+$btnTest = New-Object System.Windows.Forms.Button
+$btnTest.Text      = 'Test Connection'
+$btnTest.Location  = New-Object System.Drawing.Point(($tx + 126), 206)
+$btnTest.Size      = New-Object System.Drawing.Size(110, 28)
+$btnTest.FlatStyle = 'Flat'
+$form.Controls.Add($btnTest)
+
 $btnImport = New-Object System.Windows.Forms.Button
 $btnImport.Text      = 'Import'
-$btnImport.Location  = New-Object System.Drawing.Point(($tx + 146), 206)
+$btnImport.Location  = New-Object System.Drawing.Point(($tx + 242), 206)
 $btnImport.Size      = New-Object System.Drawing.Size(100, 28)
 $btnImport.BackColor = [System.Drawing.Color]::FromArgb(88, 166, 255)
 $btnImport.ForeColor = [System.Drawing.Color]::White
@@ -243,6 +239,53 @@ $btnGitBrowse.Add_Click({
     if ($dlg.ShowDialog() -eq 'OK') { $txtGit.Text = $dlg.FileName }
 })
 
+$btnTest.Add_Click({
+    $gitLabUrl = $txtUrl.Text.Trim()
+    $token     = $txtToken.Text.Trim()
+    if (-not $gitLabUrl -or -not $token) {
+        [System.Windows.Forms.MessageBox]::Show('Enter GitLab URL and Token first.', 'Test Connection', 'OK', 'Warning') | Out-Null
+        return
+    }
+    $txtLog.Clear()
+    $lblStatus.Text = 'Testing connection...'
+    [System.Windows.Forms.Application]::DoEvents()
+
+    # Who am I?
+    try {
+        $me = Invoke-GitLabApi GET '/user' -BaseUrl $gitLabUrl -Token $token
+        AppendLog "Authenticated as: $($me.username) (id=$($me.id))" ([System.Drawing.Color]::LightGreen)
+    } catch {
+        AppendLog "AUTH FAILED: $_" ([System.Drawing.Color]::Red)
+        AppendLog 'Token is invalid or has no API access.' ([System.Drawing.Color]::Yellow)
+        $lblStatus.Text = 'Connection failed.'
+        return
+    }
+
+    # Namespaces
+    try {
+        $nsList = Invoke-GitLabApi GET '/namespaces' -BaseUrl $gitLabUrl -Token $token
+        AppendLog "`nAccessible namespaces ($($nsList.Count)):" ([System.Drawing.Color]::Cyan)
+        foreach ($n in $nsList) {
+            AppendLog "  id=$($n.id)  kind=$($n.kind)  full_path=$($n.full_path)" ([System.Drawing.Color]::White)
+        }
+    } catch {
+        AppendLog "`nCould not list namespaces: $_" ([System.Drawing.Color]::Yellow)
+    }
+
+    # Groups
+    try {
+        $grpList = Invoke-GitLabApi GET '/groups' -BaseUrl $gitLabUrl -Token $token
+        AppendLog "`nAccessible groups ($($grpList.Count)):" ([System.Drawing.Color]::Cyan)
+        foreach ($g in $grpList) {
+            AppendLog "  id=$($g.id)  full_path=$($g.full_path)" ([System.Drawing.Color]::White)
+        }
+    } catch {
+        AppendLog "`nCould not list groups: $_" ([System.Drawing.Color]::Yellow)
+    }
+
+    $lblStatus.Text = 'Connection test complete - see log.'
+})
+
 $btnImport.Add_Click({
     $zipFile    = $txtZip.Text.Trim()
     $repoName   = $txtRepoName.Text.Trim()
@@ -267,6 +310,7 @@ $btnImport.Add_Click({
     }
 
     $btnImport.Enabled = $false
+    $btnTest.Enabled   = $false
     $txtLog.Clear()
     $progress.Value   = 0
     $progress.Maximum = 1
@@ -284,7 +328,7 @@ $btnImport.Add_Click({
         $nsId = Resolve-NamespaceId -Ns $namespace -BaseUrl $gitLabUrl -Token $token
         if (-not $nsId) {
             AppendLog "ERROR: Could not resolve namespace '$namespace'." ([System.Drawing.Color]::Red)
-            AppendLog "Tip: enter the numeric group ID in the Namespace field instead (found at GitLab group Settings > General)." ([System.Drawing.Color]::Yellow)
+            AppendLog 'Use Test Connection to see available namespaces and their IDs.' ([System.Drawing.Color]::Yellow)
             $lblStatus.Text = 'Failed - namespace not found.'
             return
         }
@@ -318,6 +362,7 @@ $btnImport.Add_Click({
             } -BaseUrl $gitLabUrl -Token $token
         } catch {
             AppendLog "ERROR: Could not create project '$repoName': $_" ([System.Drawing.Color]::Red)
+            AppendLog 'If error is "namespace is not valid", use Test Connection to find the correct namespace ID.' ([System.Drawing.Color]::Yellow)
             $lblStatus.Text = 'Failed - see log.'
             return
         }
@@ -360,6 +405,7 @@ $btnImport.Add_Click({
     } finally {
         Remove-Item -Recurse -Force $workDir -ErrorAction SilentlyContinue
         $btnImport.Enabled = $true
+        $btnTest.Enabled   = $true
     }
 })
 
