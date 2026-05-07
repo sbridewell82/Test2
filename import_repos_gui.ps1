@@ -2,7 +2,7 @@
 # Requires: PowerShell 5.1+, git
 
 $DefaultGitLabUrl  = 'http://172.18.3.37'
-$DefaultNamespace  = 'a-e421760'
+$DefaultNamespace  = 'dataplane-admins/software-automation'
 $DefaultToken      = 'YOUR_TOKEN_HERE'   # <-- paste your glpat-... token here
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -191,7 +191,6 @@ function Update-RepoNameFromZip {
         $tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) "scan_$(Get-Random)"
         New-Item -ItemType Directory -Path $tmpDir | Out-Null
         Expand-Archive -Path $ZipPath -DestinationPath $tmpDir -Force
-        # Any top-level directory is a candidate for the repo name
         $found = Get-ChildItem -Path $tmpDir -Directory | Select-Object -First 1
         if ($found) {
             $txtRepoName.Text = $found.Name -replace '\.git$', ''
@@ -266,7 +265,6 @@ $btnImport.Add_Click({
         }
         AppendLog "Namespace ID: $nsId" ([System.Drawing.Color]::Gray)
 
-        # Find the source directory - prefer a git repo, fall back to any directory
         $allDirs = @(Get-ChildItem -Path $extractedRoot -Directory)
 
         $dir = $allDirs | Where-Object {
@@ -278,10 +276,8 @@ $btnImport.Add_Click({
 
         $isWorkingTree = $false
         if (-not $dir) {
-            # No git metadata found - treat top-level directory as a plain working tree
             $dir = $allDirs | Select-Object -First 1
             if (-not $dir) {
-                # Zip may have extracted files directly into root with no subdirectory
                 $dir = [PSCustomObject]@{ FullName = $extractedRoot }
             }
             $isWorkingTree = $true
@@ -291,7 +287,6 @@ $btnImport.Add_Click({
         $isBare = (-not $isWorkingTree) -and (-not (Test-Path (Join-Path $dir.FullName '.git')))
         AppendLog "Importing as '$repoName' ..." ([System.Drawing.Color]::White)
 
-        # Create GitLab project
         try {
             $project = Invoke-GitLabApi POST '/projects' -Body @{
                 name                   = $repoName
@@ -309,12 +304,10 @@ $btnImport.Add_Click({
         $cloneDir = Join-Path $workDir 'push_repo'
 
         if ($isWorkingTree) {
-            # Init a fresh repo, add all files, commit, then push
             New-Item -ItemType Directory -Path $cloneDir | Out-Null
             & $gitExe -C $cloneDir init -b main 2>&1 | Out-Null
             & $gitExe -C $cloneDir config user.email 'import@localhost' 2>&1 | Out-Null
             & $gitExe -C $cloneDir config user.name  'Importer' 2>&1 | Out-Null
-            # Copy extracted files into the new repo
             Copy-Item -Path (Join-Path $dir.FullName '*') -Destination $cloneDir -Recurse -Force
             & $gitExe -C $cloneDir add --all 2>&1 | Out-Null
             & $gitExe -C $cloneDir commit -m 'Initial import' 2>&1 | Out-Null
