@@ -1,0 +1,6 @@
+---
+# Encrypt this file with: ansible-vault encrypt group_vars/all/vault.yml
+# In Semaphore, store the vault password in Key Store and attach it to the task template.
+#
+# ndm_username: "svc_ansible@lmc-aero-up.com"
+# ndm_password: "ChangeMe!"

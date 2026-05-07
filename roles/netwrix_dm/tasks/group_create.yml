@@ -1,0 +1,31 @@
+---
+- name: Validate required variables for group creation
+  assert:
+    that:
+      - group_name | length > 0
+      - group_container | length > 0
+    fail_msg: "group_name and group_container must be set"
+
+- name: Create security group in Netwrix Directory Manager
+  uri:
+    url: "https://{{ ndm_host }}:{{ ndm_port }}/GroupIDDataService/api/IdentityStores/{{ ndm_identity_store_id }}/Groups"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ ndm_access_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      DisplayName: "{{ group_name }}"
+      Description: "{{ group_description | default('') }}"
+      GroupScope: "{{ group_scope | int }}"
+      GroupType: "{{ group_type | int }}"
+      Container: "{{ group_container }}"
+      ManagedByDN: "{{ group_owners | default([]) }}"
+    validate_certs: "{{ ndm_validate_certs }}"
+    status_code: [200, 201]
+    timeout: 30
+  register: ndm_group_create_result
+
+- name: Show created group DN
+  debug:
+    msg: "Group '{{ group_name }}' created. DN: {{ ndm_group_create_result.json.DN | default('N/A') }}"

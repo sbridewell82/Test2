@@ -1,0 +1,41 @@
+---
+- name: Validate required variables for user creation
+  assert:
+    that:
+      - user_first_name | length > 0
+      - user_last_name | length > 0
+      - user_sam_account_name | length > 0
+      - user_principal_name | length > 0
+      - user_password | length > 0
+      - user_container | length > 0
+    fail_msg: >-
+      user_first_name, user_last_name, user_sam_account_name,
+      user_principal_name, user_password, and user_container must all be set
+
+- name: Create user in Netwrix Directory Manager
+  uri:
+    url: "https://{{ ndm_host }}:{{ ndm_port }}/GroupIDDataService/api/IdentityStores/{{ ndm_identity_store_id }}/Users"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ ndm_access_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      FirstName: "{{ user_first_name }}"
+      LastName: "{{ user_last_name }}"
+      DisplayName: "{{ user_display_name | default(user_first_name + ' ' + user_last_name) }}"
+      Name: "{{ user_sam_account_name }}"
+      SamAccountName: "{{ user_sam_account_name }}"
+      UserPrincipalName: "{{ user_principal_name }}"
+      Password: "{{ user_password }}"
+      Container: "{{ user_container }}"
+      Description: "{{ user_description | default('') }}"
+    validate_certs: "{{ ndm_validate_certs }}"
+    status_code: [200, 201]
+    timeout: 30
+  register: ndm_user_create_result
+  no_log: true
+
+- name: Show created user DN
+  debug:
+    msg: "User '{{ user_sam_account_name }}' created. DN: {{ ndm_user_create_result.json.DN | default('N/A') }}"

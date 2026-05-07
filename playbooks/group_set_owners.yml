@@ -1,0 +1,21 @@
+---
+# Assign owners to an existing group in Netwrix Directory Manager
+# This replaces the current owner list with the provided list.
+#
+# Required extra-vars:
+#   group_identity    - DN or sAMAccountName of the target group
+#   group_owners      - List of owner DNs (replaces existing owners)
+#                       e.g. ["CN=jdoe,OU=Users,DC=lmc-aero-up,DC=com"]
+#   ndm_username      - NDM service account username
+#   ndm_password      - NDM service account password
+#   ndm_host          - NDM server hostname/IP
+#   ndm_identity_store_id - Identity store ID from NDM admin console
+
+- name: Set owners on group in Netwrix Directory Manager
+  hosts: localhost
+  gather_facts: false
+
+  roles:
+    - role: netwrix_dm
+      vars:
+        ndm_task: group_set_owners

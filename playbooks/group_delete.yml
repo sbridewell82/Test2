@@ -1,0 +1,18 @@
+---
+# Delete a group from Netwrix Directory Manager
+#
+# Required extra-vars:
+#   group_identity    - DN or sAMAccountName of the group to delete
+#   ndm_username      - NDM service account username
+#   ndm_password      - NDM service account password
+#   ndm_host          - NDM server hostname/IP
+#   ndm_identity_store_id - Identity store ID from NDM admin console
+
+- name: Delete group from Netwrix Directory Manager
+  hosts: localhost
+  gather_facts: false
+
+  roles:
+    - role: netwrix_dm
+      vars:
+        ndm_task: group_delete
