@@ -6,6 +6,11 @@
       - group_members | length > 0
     fail_msg: "group_identity and group_members (non-empty list) must be set"
 
+- name: Build members request payload
+  set_fact:
+    _ndm_members_payload: "{{ (_ndm_members_payload | default([])) + [{'DN': item}] }}"
+  loop: "{{ group_members }}"
+
 - name: Add members to group in Netwrix Directory Manager
   uri:
     url: "https://{{ ndm_host }}:{{ ndm_port }}/GroupIDDataService/api/IdentityStores/{{ ndm_identity_store_id }}/Groups/{{ group_identity | urlencode }}/Members"
@@ -15,7 +20,7 @@
       Content-Type: "application/json"
     body_format: json
     body:
-      Members: "{{ group_members | map('community.general.dict_kv', 'DN') | list }}"
+      Members: "{{ _ndm_members_payload }}"
     validate_certs: "{{ ndm_validate_certs }}"
     status_code: [200, 201, 204]
     timeout: 30

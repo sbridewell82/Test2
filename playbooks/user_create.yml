@@ -5,7 +5,7 @@
 #   user_first_name       - User's first name
 #   user_last_name        - User's last name
 #   user_sam_account_name - sAMAccountName (logon name)
-#   user_principal_name   - UPN, e.g. jdoe@example.com
+#   user_principal_name   - UPN, e.g. jdoe@lmc-aero-up.com
 #   user_password         - Initial password (must meet domain complexity policy)
 #   user_container        - LDAP OU path, e.g. "OU=Users,DC=lmc-aero-up,DC=com"
 #   ndm_username          - NDM service account username

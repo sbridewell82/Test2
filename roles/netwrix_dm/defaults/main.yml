@@ -15,7 +15,7 @@ ndm_default_user_container: "OU=Users,DC=lmc-aero-up,DC=com"
 ndm_default_group_scope: 1
 ndm_default_group_type: 8
 
-# ---- Group operation vars (set via extra-vars or AAP survey) ----
+# ---- Group operation vars (set via extra-vars or Semaphore survey) ----
 group_name: ""
 group_description: ""
 group_container: "{{ ndm_default_group_container }}"
@@ -28,7 +28,7 @@ group_members: []
 # group_owners: list of DN strings
 group_owners: []
 
-# ---- User operation vars (set via extra-vars or AAP survey) ----
+# ---- User operation vars (set via extra-vars or Semaphore survey) ----
 user_first_name: ""
 user_last_name: ""
 user_sam_account_name: ""

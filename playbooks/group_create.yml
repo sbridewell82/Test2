@@ -1,7 +1,7 @@
 ---
 # Create a security group in Netwrix Directory Manager
 #
-# Required extra-vars (set via AAP survey or --extra-vars):
+# Required extra-vars (set via Semaphore survey or --extra-vars):
 #   group_name        - Display name of the new group
 #   group_container   - LDAP OU path, e.g. "OU=Groups,DC=lmc-aero-up,DC=com"
 #   ndm_username      - NDM service account username
