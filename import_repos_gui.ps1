@@ -1,4 +1,4 @@
-# GitLab Repository Importer — Windows Forms GUI
+# GitLab Repository Importer - Windows Forms GUI
 # Requires: PowerShell 5.1+, git in PATH
 
 $DefaultGitLabUrl  = 'http://172.18.3.37'
@@ -9,7 +9,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-# ── GitLab API helpers (shared with CLI script) ───────────────────────────────
+# ---- GitLab API helpers (shared with CLI script) ----------------------------
 
 function Invoke-GitLabApi {
     param([string]$Method, [string]$ApiPath, [hashtable]$Body = @{},
@@ -49,7 +49,7 @@ function New-GitLabProject {
     } -BaseUrl $BaseUrl -Token $Token
 }
 
-# ── UI construction ───────────────────────────────────────────────────────────
+# ---- UI construction --------------------------------------------------------
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text          = 'GitLab Repository Importer'
@@ -88,7 +88,7 @@ $txtZip = New-TextBox ($pad + 84) 18 380
 $form.Controls.Add($txtZip)
 
 $btnBrowse = New-Object System.Windows.Forms.Button
-$btnBrowse.Text     = 'Browse…'
+$btnBrowse.Text     = 'Browse...'
 $btnBrowse.Location = New-Object System.Drawing.Point(($pad + 84 + 386), 17)
 $btnBrowse.Size     = New-Object System.Drawing.Size(80, 26)
 $form.Controls.Add($btnBrowse)
@@ -157,7 +157,7 @@ $txtLog.Font       = New-Object System.Drawing.Font('Consolas', 9)
 $txtLog.ScrollBars = 'Vertical'
 $form.Controls.Add($txtLog)
 
-# ── event handlers ────────────────────────────────────────────────────────────
+# ---- event handlers ---------------------------------------------------------
 
 function AppendLog {
     param([string]$Text, [System.Drawing.Color]$Color)
@@ -217,7 +217,7 @@ $btnImport.Add_Click({
         $nsId = Resolve-NamespaceId -Ns $namespace -BaseUrl $gitLabUrl -Token $token
         if (-not $nsId) {
             AppendLog "ERROR: Could not resolve namespace '$namespace'." ([System.Drawing.Color]::Red)
-            $lblStatus.Text = 'Failed — namespace not found.'
+            $lblStatus.Text = 'Failed - namespace not found.'
             return
         }
         AppendLog "Namespace ID: $nsId" ([System.Drawing.Color]::Gray)
@@ -233,7 +233,7 @@ $btnImport.Add_Click({
 
         if ($repos.Count -eq 0) {
             AppendLog 'No git repositories found in the zip.' ([System.Drawing.Color]::Yellow)
-            $lblStatus.Text = 'Done — no repos found.'
+            $lblStatus.Text = 'Done - no repos found.'
             return
         }
 
@@ -283,19 +283,19 @@ $btnImport.Add_Click({
             $progress.Value = $i
         }
 
-        $summary = "Done — $succeeded succeeded, $failed failed."
+        $summary = "Done - $succeeded succeeded, $failed failed."
         AppendLog $summary ([System.Drawing.Color]::Cyan)
         $lblStatus.Text = $summary
 
     } catch {
         AppendLog "FATAL: $_" ([System.Drawing.Color]::Red)
-        $lblStatus.Text = 'Import failed — see log.'
+        $lblStatus.Text = 'Import failed - see log.'
     } finally {
         Remove-Item -Recurse -Force $workDir -ErrorAction SilentlyContinue
         $btnImport.Enabled = $true
     }
 })
 
-# ── launch ────────────────────────────────────────────────────────────────────
+# ---- launch -----------------------------------------------------------------
 
 [System.Windows.Forms.Application]::Run($form)
