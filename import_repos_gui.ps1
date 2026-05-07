@@ -1,5 +1,5 @@
 # GitLab Repository Importer - Windows Forms GUI
-# Requires: PowerShell 5.1+, git in PATH
+# Requires: PowerShell 5.1+, git
 
 $DefaultGitLabUrl  = 'http://172.18.3.37'
 $DefaultNamespace  = 'a-e421760'
@@ -9,7 +9,25 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-# ---- GitLab API helpers -----------------------------------------------------
+# ---- helpers ----------------------------------------------------------------
+
+function Find-Git {
+    # Check PATH first
+    $inPath = Get-Command git -ErrorAction SilentlyContinue
+    if ($inPath) { return $inPath.Source }
+
+    # Common Windows install locations
+    $candidates = @(
+        'C:\Program Files\Git\cmd\git.exe',
+        'C:\Program Files\Git\bin\git.exe',
+        'C:\Program Files (x86)\Git\cmd\git.exe',
+        'C:\Program Files (x86)\Git\bin\git.exe'
+    )
+    foreach ($c in $candidates) {
+        if (Test-Path $c) { return $c }
+    }
+    return ''
+}
 
 function Invoke-GitLabApi {
     param([string]$Method, [string]$ApiPath, [hashtable]$Body = @{},
@@ -43,7 +61,7 @@ function Resolve-NamespaceId {
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text            = 'GitLab Repository Importer'
-$form.Size            = New-Object System.Drawing.Size(620, 600)
+$form.Size            = New-Object System.Drawing.Size(620, 640)
 $form.StartPosition   = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
 $form.MaximizeBox     = $false
@@ -70,37 +88,36 @@ function New-TextBox {
 }
 
 $pad = 16
-$lw  = 90   # label width
-$tx  = $pad + $lw  # textbox x
-$tw  = 466  # textbox width
+$lw  = 90
+$tx  = $pad + $lw
+$tw  = 466
 
-# Row: Zip File
+# Zip File
 $form.Controls.Add((New-Label 'Zip File' $pad 20 $lw))
 $txtZip = New-TextBox $tx 18 380
 $form.Controls.Add($txtZip)
-
 $btnBrowse = New-Object System.Windows.Forms.Button
 $btnBrowse.Text     = 'Browse...'
 $btnBrowse.Location = New-Object System.Drawing.Point(($tx + 386), 17)
 $btnBrowse.Size     = New-Object System.Drawing.Size(80, 26)
 $form.Controls.Add($btnBrowse)
 
-# Row: Repo Name
+# Repo Name
 $form.Controls.Add((New-Label 'Repo Name' $pad 58 $lw))
 $txtRepoName = New-TextBox $tx 56 $tw
 $form.Controls.Add($txtRepoName)
 
-# Row: GitLab URL
+# GitLab URL
 $form.Controls.Add((New-Label 'GitLab URL' $pad 96 $lw))
 $txtUrl = New-TextBox $tx 94 $tw $DefaultGitLabUrl
 $form.Controls.Add($txtUrl)
 
-# Row: Namespace
+# Namespace
 $form.Controls.Add((New-Label 'Namespace' $pad 134 $lw))
 $txtNs = New-TextBox $tx 132 $tw $DefaultNamespace
 $form.Controls.Add($txtNs)
 
-# Row: Token
+# Token
 $form.Controls.Add((New-Label 'Token' $pad 172 $lw))
 $txtToken = New-Object System.Windows.Forms.TextBox
 $txtToken.Location     = New-Object System.Drawing.Point($tx, 170)
@@ -109,7 +126,7 @@ $txtToken.PasswordChar = '*'
 $txtToken.Text         = if ($env:GITLAB_TOKEN) { $env:GITLAB_TOKEN } else { $DefaultToken }
 $form.Controls.Add($txtToken)
 
-# Row: Visibility + Import button
+# Visibility + Import button
 $form.Controls.Add((New-Label 'Visibility' $pad 210 $lw))
 $cboVis = New-Object System.Windows.Forms.ComboBox
 $cboVis.Location      = New-Object System.Drawing.Point($tx, 208)
@@ -118,7 +135,6 @@ $cboVis.DropDownStyle = 'DropDownList'
 @('private','internal','public') | ForEach-Object { $cboVis.Items.Add($_) | Out-Null }
 $cboVis.SelectedIndex = 0
 $form.Controls.Add($cboVis)
-
 $btnImport = New-Object System.Windows.Forms.Button
 $btnImport.Text      = 'Import'
 $btnImport.Location  = New-Object System.Drawing.Point(($tx + 146), 206)
@@ -128,23 +144,33 @@ $btnImport.ForeColor = [System.Drawing.Color]::White
 $btnImport.FlatStyle = 'Flat'
 $form.Controls.Add($btnImport)
 
+# Git Path
+$form.Controls.Add((New-Label 'Git Path' $pad 248 $lw))
+$txtGit = New-TextBox $tx 246 380 (Find-Git)
+$form.Controls.Add($txtGit)
+$btnGitBrowse = New-Object System.Windows.Forms.Button
+$btnGitBrowse.Text     = 'Browse...'
+$btnGitBrowse.Location = New-Object System.Drawing.Point(($tx + 386), 245)
+$btnGitBrowse.Size     = New-Object System.Drawing.Size(80, 26)
+$form.Controls.Add($btnGitBrowse)
+
 # Progress bar
 $progress = New-Object System.Windows.Forms.ProgressBar
-$progress.Location = New-Object System.Drawing.Point($pad, 250)
+$progress.Location = New-Object System.Drawing.Point($pad, 288)
 $progress.Size     = New-Object System.Drawing.Size(570, 18)
 $progress.Style    = 'Continuous'
 $form.Controls.Add($progress)
 
 # Status label
 $lblStatus = New-Object System.Windows.Forms.Label
-$lblStatus.Location = New-Object System.Drawing.Point($pad, 272)
+$lblStatus.Location = New-Object System.Drawing.Point($pad, 310)
 $lblStatus.Size     = New-Object System.Drawing.Size(570, 20)
 $lblStatus.Text     = 'Ready.'
 $form.Controls.Add($lblStatus)
 
 # Log output
 $txtLog = New-Object System.Windows.Forms.RichTextBox
-$txtLog.Location   = New-Object System.Drawing.Point($pad, 296)
+$txtLog.Location   = New-Object System.Drawing.Point($pad, 334)
 $txtLog.Size       = New-Object System.Drawing.Size(570, 250)
 $txtLog.ReadOnly   = $true
 $txtLog.BackColor  = [System.Drawing.Color]::FromArgb(30, 30, 30)
@@ -165,7 +191,6 @@ function AppendLog {
     [System.Windows.Forms.Application]::DoEvents()
 }
 
-# When a zip is selected, pre-fill Repo Name from the first repo found inside
 function Update-RepoNameFromZip {
     param([string]$ZipPath)
     if (-not (Test-Path $ZipPath)) { return }
@@ -195,6 +220,15 @@ $btnBrowse.Add_Click({
     }
 })
 
+$btnGitBrowse.Add_Click({
+    $dlg = New-Object System.Windows.Forms.OpenFileDialog
+    $dlg.Title  = 'Locate git.exe'
+    $dlg.Filter = 'git.exe|git.exe|All executables (*.exe)|*.exe'
+    if ($dlg.ShowDialog() -eq 'OK') {
+        $txtGit.Text = $dlg.FileName
+    }
+})
+
 $btnImport.Add_Click({
     $zipFile    = $txtZip.Text.Trim()
     $repoName   = $txtRepoName.Text.Trim()
@@ -202,15 +236,16 @@ $btnImport.Add_Click({
     $namespace  = $txtNs.Text.Trim()
     $token      = $txtToken.Text.Trim()
     $visibility = $cboVis.SelectedItem
+    $gitExe     = $txtGit.Text.Trim()
 
     $errors = @()
-    if (-not $zipFile)                                        { $errors += 'Select a zip file.' }
-    if (-not $repoName)                                       { $errors += 'Enter a repo name.' }
-    if (-not $gitLabUrl)                                      { $errors += 'Enter the GitLab URL.' }
-    if (-not $namespace)                                      { $errors += 'Enter the namespace.' }
-    if (-not $token)                                          { $errors += 'Enter a GitLab token.' }
-    if ($zipFile -and -not (Test-Path $zipFile))              { $errors += "Zip file not found: $zipFile" }
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) { $errors += 'git not found in PATH.' }
+    if (-not $zipFile)                               { $errors += 'Select a zip file.' }
+    if (-not $repoName)                              { $errors += 'Enter a repo name.' }
+    if (-not $gitLabUrl)                             { $errors += 'Enter the GitLab URL.' }
+    if (-not $namespace)                             { $errors += 'Enter the namespace.' }
+    if (-not $token)                                 { $errors += 'Enter a GitLab token.' }
+    if ($zipFile -and -not (Test-Path $zipFile))     { $errors += "Zip file not found: $zipFile" }
+    if (-not $gitExe -or -not (Test-Path $gitExe))   { $errors += 'git.exe not found. Set the Git Path field.' }
 
     if ($errors.Count -gt 0) {
         [System.Windows.Forms.MessageBox]::Show(($errors -join "`n"), 'Validation Error',
@@ -274,12 +309,12 @@ $btnImport.Add_Click({
         $cloneDir = Join-Path $workDir 'push_repo'
 
         if ($isBare) {
-            git clone --bare   $dir.FullName $cloneDir -q 2>&1 | Out-Null
+            & $gitExe clone --bare   $dir.FullName $cloneDir -q 2>&1 | Out-Null
         } else {
-            git clone --mirror $dir.FullName $cloneDir -q 2>&1 | Out-Null
+            & $gitExe clone --mirror $dir.FullName $cloneDir -q 2>&1 | Out-Null
         }
 
-        $out = git -C $cloneDir push --mirror $pushUrl 2>&1
+        $out = & $gitExe -C $cloneDir push --mirror $pushUrl 2>&1
         if ($LASTEXITCODE -eq 0) {
             $url = "$($gitLabUrl.TrimEnd('/'))/$namespace/$repoName"
             AppendLog "Done: $url" ([System.Drawing.Color]::LightGreen)
