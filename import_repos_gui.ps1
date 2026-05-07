@@ -12,31 +12,24 @@ Add-Type -AssemblyName System.Drawing
 # ---- helpers ----------------------------------------------------------------
 
 function Find-Git {
-    # Check PATH first
     $inPath = Get-Command git -ErrorAction SilentlyContinue
     if ($inPath) { return $inPath.Source }
-
-    # Common Windows install locations
     $candidates = @(
         'C:\Program Files\Git\cmd\git.exe',
         'C:\Program Files\Git\bin\git.exe',
         'C:\Program Files (x86)\Git\cmd\git.exe',
         'C:\Program Files (x86)\Git\bin\git.exe'
     )
-    foreach ($c in $candidates) {
-        if (Test-Path $c) { return $c }
-    }
+    foreach ($c in $candidates) { if (Test-Path $c) { return $c } }
     return ''
 }
 
 function Invoke-GitLabApi {
     param([string]$Method, [string]$ApiPath, [hashtable]$Body = @{},
           [string]$BaseUrl, [string]$Token)
-
     $uri     = "$($BaseUrl.TrimEnd('/'))/api/v4$ApiPath"
     $headers = @{ 'PRIVATE-TOKEN' = $Token }
     $params  = @{ Method = $Method; Uri = $uri; Headers = $headers }
-
     if ($Body.Count -gt 0) {
         $params['Body']        = ($Body | ConvertTo-Json -Depth 5)
         $params['ContentType'] = 'application/json'
@@ -198,11 +191,8 @@ function Update-RepoNameFromZip {
         $tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) "scan_$(Get-Random)"
         New-Item -ItemType Directory -Path $tmpDir | Out-Null
         Expand-Archive -Path $ZipPath -DestinationPath $tmpDir -Force
-        $found = Get-ChildItem -Path $tmpDir -Directory -Depth 1 | Where-Object {
-            (Test-Path (Join-Path $_.FullName '.git')) -or
-            ((Test-Path (Join-Path $_.FullName 'HEAD')) -and
-             (Test-Path (Join-Path $_.FullName 'objects')))
-        } | Select-Object -First 1
+        # Any top-level directory is a candidate for the repo name
+        $found = Get-ChildItem -Path $tmpDir -Directory | Select-Object -First 1
         if ($found) {
             $txtRepoName.Text = $found.Name -replace '\.git$', ''
         }
@@ -239,13 +229,13 @@ $btnImport.Add_Click({
     $gitExe     = $txtGit.Text.Trim()
 
     $errors = @()
-    if (-not $zipFile)                               { $errors += 'Select a zip file.' }
-    if (-not $repoName)                              { $errors += 'Enter a repo name.' }
-    if (-not $gitLabUrl)                             { $errors += 'Enter the GitLab URL.' }
-    if (-not $namespace)                             { $errors += 'Enter the namespace.' }
-    if (-not $token)                                 { $errors += 'Enter a GitLab token.' }
-    if ($zipFile -and -not (Test-Path $zipFile))     { $errors += "Zip file not found: $zipFile" }
-    if (-not $gitExe -or -not (Test-Path $gitExe))   { $errors += 'git.exe not found. Set the Git Path field.' }
+    if (-not $zipFile)                             { $errors += 'Select a zip file.' }
+    if (-not $repoName)                            { $errors += 'Enter a repo name.' }
+    if (-not $gitLabUrl)                           { $errors += 'Enter the GitLab URL.' }
+    if (-not $namespace)                           { $errors += 'Enter the namespace.' }
+    if (-not $token)                               { $errors += 'Enter a GitLab token.' }
+    if ($zipFile -and -not (Test-Path $zipFile))   { $errors += "Zip file not found: $zipFile" }
+    if (-not $gitExe -or -not (Test-Path $gitExe)) { $errors += 'git.exe not found. Set the Git Path field.' }
 
     if ($errors.Count -gt 0) {
         [System.Windows.Forms.MessageBox]::Show(($errors -join "`n"), 'Validation Error',
@@ -264,7 +254,8 @@ $btnImport.Add_Click({
 
     try {
         AppendLog "Extracting $zipFile ..." ([System.Drawing.Color]::Cyan)
-        Expand-Archive -Path $zipFile -DestinationPath (Join-Path $workDir 'extracted') -Force
+        $extractedRoot = Join-Path $workDir 'extracted'
+        Expand-Archive -Path $zipFile -DestinationPath $extractedRoot -Force
 
         AppendLog "Resolving namespace '$namespace' ..." ([System.Drawing.Color]::Cyan)
         $nsId = Resolve-NamespaceId -Ns $namespace -BaseUrl $gitLabUrl -Token $token
@@ -275,23 +266,32 @@ $btnImport.Add_Click({
         }
         AppendLog "Namespace ID: $nsId" ([System.Drawing.Color]::Gray)
 
-        $extractedRoot = Join-Path $workDir 'extracted'
-        $dir = Get-ChildItem -Path $extractedRoot -Directory -Depth 1 | Where-Object {
+        # Find the source directory - prefer a git repo, fall back to any directory
+        $allDirs = @(Get-ChildItem -Path $extractedRoot -Directory)
+
+        $dir = $allDirs | Where-Object {
             (Test-Path (Join-Path $_.FullName '.git')) -or
             ((Test-Path (Join-Path $_.FullName 'HEAD')) -and
              (Test-Path (Join-Path $_.FullName 'objects')) -and
              (Test-Path (Join-Path $_.FullName 'refs')))
         } | Select-Object -First 1
 
+        $isWorkingTree = $false
         if (-not $dir) {
-            AppendLog 'No git repository found in the zip.' ([System.Drawing.Color]::Yellow)
-            $lblStatus.Text = 'Done - no repo found.'
-            return
+            # No git metadata found - treat top-level directory as a plain working tree
+            $dir = $allDirs | Select-Object -First 1
+            if (-not $dir) {
+                # Zip may have extracted files directly into root with no subdirectory
+                $dir = [PSCustomObject]@{ FullName = $extractedRoot }
+            }
+            $isWorkingTree = $true
+            AppendLog 'No git repo structure found - importing as new repo from source files.' ([System.Drawing.Color]::Yellow)
         }
 
-        $isBare = (-not (Test-Path (Join-Path $dir.FullName '.git')))
+        $isBare = (-not $isWorkingTree) -and (-not (Test-Path (Join-Path $dir.FullName '.git')))
         AppendLog "Importing as '$repoName' ..." ([System.Drawing.Color]::White)
 
+        # Create GitLab project
         try {
             $project = Invoke-GitLabApi POST '/projects' -Body @{
                 name                   = $repoName
@@ -308,13 +308,25 @@ $btnImport.Add_Click({
         $pushUrl  = $project.http_url_to_repo -replace '://', "://oauth2:$token@"
         $cloneDir = Join-Path $workDir 'push_repo'
 
-        if ($isBare) {
+        if ($isWorkingTree) {
+            # Init a fresh repo, add all files, commit, then push
+            New-Item -ItemType Directory -Path $cloneDir | Out-Null
+            & $gitExe -C $cloneDir init -b main 2>&1 | Out-Null
+            & $gitExe -C $cloneDir config user.email 'import@localhost' 2>&1 | Out-Null
+            & $gitExe -C $cloneDir config user.name  'Importer' 2>&1 | Out-Null
+            # Copy extracted files into the new repo
+            Copy-Item -Path (Join-Path $dir.FullName '*') -Destination $cloneDir -Recurse -Force
+            & $gitExe -C $cloneDir add --all 2>&1 | Out-Null
+            & $gitExe -C $cloneDir commit -m 'Initial import' 2>&1 | Out-Null
+            $out = & $gitExe -C $cloneDir push $pushUrl main 2>&1
+        } elseif ($isBare) {
             & $gitExe clone --bare   $dir.FullName $cloneDir -q 2>&1 | Out-Null
+            $out = & $gitExe -C $cloneDir push --mirror $pushUrl 2>&1
         } else {
             & $gitExe clone --mirror $dir.FullName $cloneDir -q 2>&1 | Out-Null
+            $out = & $gitExe -C $cloneDir push --mirror $pushUrl 2>&1
         }
 
-        $out = & $gitExe -C $cloneDir push --mirror $pushUrl 2>&1
         if ($LASTEXITCODE -eq 0) {
             $url = "$($gitLabUrl.TrimEnd('/'))/$namespace/$repoName"
             AppendLog "Done: $url" ([System.Drawing.Color]::LightGreen)
