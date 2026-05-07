@@ -1,6 +1,10 @@
 # GitLab Repository Importer — Windows Forms GUI
 # Requires: PowerShell 5.1+, git in PATH
 
+$DefaultGitLabUrl  = 'http://172.18.3.37'
+$DefaultNamespace  = 'a-e421760'
+$DefaultToken      = 'YOUR_TOKEN_HERE'   # <-- paste your glpat-... token here
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
@@ -71,19 +75,7 @@ function New-TextBox {
     $t.Location    = New-Object System.Drawing.Point($X, $Y)
     $t.Size        = New-Object System.Drawing.Size($W, 24)
     $t.Text        = $PlaceHolder
-    $t.ForeColor   = [System.Drawing.Color]::Gray
-    $t.Add_Enter({
-        if ($this.Text -eq $this.Tag) {
-            $this.Text      = ''
-            $this.ForeColor = [System.Drawing.Color]::Black
-        }
-    })
-    $t.Add_Leave({
-        if ($this.Text -eq '') {
-            $this.Text      = $this.Tag
-            $this.ForeColor = [System.Drawing.Color]::Gray
-        }
-    })
+    $t.ForeColor   = [System.Drawing.Color]::Black
     $t.Tag = $PlaceHolder
     $t
 }
@@ -103,12 +95,12 @@ $form.Controls.Add($btnBrowse)
 
 # GitLab URL row
 $form.Controls.Add((New-Label 'GitLab URL' $pad 58 80))
-$txtUrl = New-TextBox ($pad + 84) 56 466 'https://gitlab.example.com'
+$txtUrl = New-TextBox ($pad + 84) 56 466 $DefaultGitLabUrl
 $form.Controls.Add($txtUrl)
 
 # Namespace row
 $form.Controls.Add((New-Label 'Namespace' $pad 96 80))
-$txtNs = New-TextBox ($pad + 84) 94 466 'mygroup'
+$txtNs = New-TextBox ($pad + 84) 94 466 $DefaultNamespace
 $form.Controls.Add($txtNs)
 
 # Token row
@@ -117,7 +109,7 @@ $txtToken = New-Object System.Windows.Forms.TextBox
 $txtToken.Location     = New-Object System.Drawing.Point(($pad + 84), 132)
 $txtToken.Size         = New-Object System.Drawing.Size(466, 24)
 $txtToken.PasswordChar = '*'
-$txtToken.Text         = $env:GITLAB_TOKEN
+$txtToken.Text         = if ($env:GITLAB_TOKEN) { $env:GITLAB_TOKEN } else { $DefaultToken }
 $form.Controls.Add($txtToken)
 
 # Visibility selector
