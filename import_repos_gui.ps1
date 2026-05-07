@@ -37,35 +37,6 @@ function Invoke-GitLabApi {
     Invoke-RestMethod @params
 }
 
-function Resolve-NamespaceId {
-    param([string]$Ns, [string]$BaseUrl, [string]$Token)
-
-    # Search namespaces by the last path segment, then match on full_path
-    $leaf = $Ns.Split('/')[-1]
-    try {
-        $results = Invoke-GitLabApi GET "/namespaces?search=$([Uri]::EscapeDataString($leaf))" -BaseUrl $BaseUrl -Token $Token
-        $match = $results | Where-Object { $_.full_path -eq $Ns -or $_.path -eq $Ns } | Select-Object -First 1
-        if ($match) { return $match.id }
-    } catch { }
-
-    # Fall back: try group lookup by full path
-    try {
-        $encoded = $Ns -replace '/', '%2F'
-        $uri     = "$($BaseUrl.TrimEnd('/'))/api/v4/groups/$encoded"
-        $headers = @{ 'PRIVATE-TOKEN' = $Token }
-        $g = Invoke-WebRequest -Uri $uri -Headers $headers -UseBasicParsing | ConvertFrom-Json
-        if ($g.id) { return $g.id }
-    } catch { }
-
-    # Fall back: user namespace
-    try {
-        $u = Invoke-GitLabApi GET "/users?username=$([Uri]::EscapeDataString($Ns))" -BaseUrl $BaseUrl -Token $Token
-        if ($u.Count -gt 0) { return $u[0].namespace_id }
-    } catch { }
-
-    return $null
-}
-
 # ---- UI construction --------------------------------------------------------
 
 $form = New-Object System.Windows.Forms.Form
@@ -267,15 +238,49 @@ $btnImport.Add_Click({
         $extractedRoot = Join-Path $workDir 'extracted'
         Expand-Archive -Path $zipFile -DestinationPath $extractedRoot -Force
 
+        # ---- Namespace resolution with full debug output --------------------
         AppendLog "Resolving namespace '$namespace' ..." ([System.Drawing.Color]::Cyan)
-        $nsId = Resolve-NamespaceId -Ns $namespace -BaseUrl $gitLabUrl -Token $token
+        $nsId = $null
+
+        # Attempt 1: /namespaces?search=
+        $leaf = $namespace.Split('/')[-1]
+        try {
+            $nsResults = Invoke-GitLabApi GET "/namespaces?search=$([Uri]::EscapeDataString($leaf))" -BaseUrl $gitLabUrl -Token $token
+            AppendLog "  /namespaces search returned $($nsResults.Count) result(s):" ([System.Drawing.Color]::Gray)
+            foreach ($r in $nsResults) {
+                AppendLog "    id=$($r.id) full_path=$($r.full_path) kind=$($r.kind)" ([System.Drawing.Color]::Gray)
+            }
+            $match = $nsResults | Where-Object { $_.full_path -eq $namespace } | Select-Object -First 1
+            if ($match) {
+                $nsId = $match.id
+                AppendLog "  Matched on full_path. id=$nsId" ([System.Drawing.Color]::Gray)
+            } else {
+                AppendLog "  No match for full_path '$namespace'" ([System.Drawing.Color]::Yellow)
+            }
+        } catch {
+            AppendLog "  /namespaces call failed: $_" ([System.Drawing.Color]::Yellow)
+        }
+
+        # Attempt 2: /groups/<encoded>
+        if (-not $nsId) {
+            try {
+                $encoded = $namespace -replace '/', '%2F'
+                $uri     = "$($gitLabUrl.TrimEnd('/'))/api/v4/groups/$encoded"
+                $g = Invoke-WebRequest -Uri $uri -Headers @{ 'PRIVATE-TOKEN' = $token } -UseBasicParsing | ConvertFrom-Json
+                AppendLog "  /groups lookup: id=$($g.id) full_path=$($g.full_path)" ([System.Drawing.Color]::Gray)
+                if ($g.id) { $nsId = $g.id }
+            } catch {
+                AppendLog "  /groups call failed: $_" ([System.Drawing.Color]::Yellow)
+            }
+        }
+
         if (-not $nsId) {
             AppendLog "ERROR: Could not resolve namespace '$namespace'." ([System.Drawing.Color]::Red)
-            AppendLog "Check that the namespace path is correct and your token has API access." ([System.Drawing.Color]::Yellow)
             $lblStatus.Text = 'Failed - namespace not found.'
             return
         }
         AppendLog "Namespace ID: $nsId" ([System.Drawing.Color]::Gray)
+        # ---------------------------------------------------------------------
 
         $allDirs = @(Get-ChildItem -Path $extractedRoot -Directory)
         $dir = $allDirs | Where-Object {
