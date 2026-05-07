@@ -37,6 +37,41 @@ function Invoke-GitLabApi {
     Invoke-RestMethod @params
 }
 
+# Resolves a namespace string to a numeric ID.
+# Accepts: plain integer, path, or subgroup path.
+function Resolve-NamespaceId {
+    param([string]$Ns, [string]$BaseUrl, [string]$Token)
+
+    # If the user typed a plain number, use it directly
+    if ($Ns -match '^\d+$') { return [int]$Ns }
+
+    $leaf = $Ns.Split('/')[-1]
+
+    # Try /namespaces?search=
+    try {
+        $r = Invoke-GitLabApi GET "/namespaces?search=$([Uri]::EscapeDataString($leaf))" -BaseUrl $BaseUrl -Token $Token
+        $m = $r | Where-Object { $_.full_path -eq $Ns } | Select-Object -First 1
+        if ($m) { return $m.id }
+    } catch { }
+
+    # Try /groups?search=
+    try {
+        $r = Invoke-GitLabApi GET "/groups?search=$([Uri]::EscapeDataString($leaf))" -BaseUrl $BaseUrl -Token $Token
+        $m = $r | Where-Object { $_.full_path -eq $Ns } | Select-Object -First 1
+        if ($m) { return $m.id }
+    } catch { }
+
+    # Try direct group lookup via Invoke-WebRequest (avoids %2F decode bug)
+    try {
+        $encoded = $Ns -replace '/', '%2F'
+        $uri     = "$($BaseUrl.TrimEnd('/'))/api/v4/groups/$encoded"
+        $g = Invoke-WebRequest -Uri $uri -Headers @{ 'PRIVATE-TOKEN' = $Token } -UseBasicParsing | ConvertFrom-Json
+        if ($g.id) { return $g.id }
+    } catch { }
+
+    return $null
+}
+
 # ---- UI construction --------------------------------------------------------
 
 $form = New-Object System.Windows.Forms.Form
@@ -92,10 +127,17 @@ $form.Controls.Add((New-Label 'GitLab URL' $pad 96 $lw))
 $txtUrl = New-TextBox $tx 94 $tw $DefaultGitLabUrl
 $form.Controls.Add($txtUrl)
 
-# Namespace
+# Namespace (path or numeric ID)
 $form.Controls.Add((New-Label 'Namespace' $pad 134 $lw))
-$txtNs = New-TextBox $tx 132 $tw $DefaultNamespace
+$txtNs = New-TextBox $tx 132 ($tw - 90) $DefaultNamespace
 $form.Controls.Add($txtNs)
+$nsHint = New-Object System.Windows.Forms.Label
+$nsHint.Text      = '(path or numeric ID)'
+$nsHint.Location  = New-Object System.Drawing.Point(($tx + $tw - 84), 136)
+$nsHint.Size      = New-Object System.Drawing.Size(160, 16)
+$nsHint.ForeColor = [System.Drawing.Color]::Gray
+$nsHint.Font      = New-Object System.Drawing.Font('Segoe UI', 7.5)
+$form.Controls.Add($nsHint)
 
 # Token
 $form.Controls.Add((New-Label 'Token' $pad 172 $lw))
@@ -238,49 +280,15 @@ $btnImport.Add_Click({
         $extractedRoot = Join-Path $workDir 'extracted'
         Expand-Archive -Path $zipFile -DestinationPath $extractedRoot -Force
 
-        # ---- Namespace resolution with full debug output --------------------
         AppendLog "Resolving namespace '$namespace' ..." ([System.Drawing.Color]::Cyan)
-        $nsId = $null
-
-        # Attempt 1: /namespaces?search=
-        $leaf = $namespace.Split('/')[-1]
-        try {
-            $nsResults = Invoke-GitLabApi GET "/namespaces?search=$([Uri]::EscapeDataString($leaf))" -BaseUrl $gitLabUrl -Token $token
-            AppendLog "  /namespaces search returned $($nsResults.Count) result(s):" ([System.Drawing.Color]::Gray)
-            foreach ($r in $nsResults) {
-                AppendLog "    id=$($r.id) full_path=$($r.full_path) kind=$($r.kind)" ([System.Drawing.Color]::Gray)
-            }
-            $match = $nsResults | Where-Object { $_.full_path -eq $namespace } | Select-Object -First 1
-            if ($match) {
-                $nsId = $match.id
-                AppendLog "  Matched on full_path. id=$nsId" ([System.Drawing.Color]::Gray)
-            } else {
-                AppendLog "  No match for full_path '$namespace'" ([System.Drawing.Color]::Yellow)
-            }
-        } catch {
-            AppendLog "  /namespaces call failed: $_" ([System.Drawing.Color]::Yellow)
-        }
-
-        # Attempt 2: /groups/<encoded>
-        if (-not $nsId) {
-            try {
-                $encoded = $namespace -replace '/', '%2F'
-                $uri     = "$($gitLabUrl.TrimEnd('/'))/api/v4/groups/$encoded"
-                $g = Invoke-WebRequest -Uri $uri -Headers @{ 'PRIVATE-TOKEN' = $token } -UseBasicParsing | ConvertFrom-Json
-                AppendLog "  /groups lookup: id=$($g.id) full_path=$($g.full_path)" ([System.Drawing.Color]::Gray)
-                if ($g.id) { $nsId = $g.id }
-            } catch {
-                AppendLog "  /groups call failed: $_" ([System.Drawing.Color]::Yellow)
-            }
-        }
-
+        $nsId = Resolve-NamespaceId -Ns $namespace -BaseUrl $gitLabUrl -Token $token
         if (-not $nsId) {
             AppendLog "ERROR: Could not resolve namespace '$namespace'." ([System.Drawing.Color]::Red)
+            AppendLog "Tip: enter the numeric group ID in the Namespace field instead (found at GitLab group Settings > General)." ([System.Drawing.Color]::Yellow)
             $lblStatus.Text = 'Failed - namespace not found.'
             return
         }
         AppendLog "Namespace ID: $nsId" ([System.Drawing.Color]::Gray)
-        # ---------------------------------------------------------------------
 
         $allDirs = @(Get-ChildItem -Path $extractedRoot -Directory)
         $dir = $allDirs | Where-Object {
