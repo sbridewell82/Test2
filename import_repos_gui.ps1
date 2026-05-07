@@ -39,14 +39,30 @@ function Invoke-GitLabApi {
 
 function Resolve-NamespaceId {
     param([string]$Ns, [string]$BaseUrl, [string]$Token)
+
+    # Search namespaces by the last path segment, then match on full_path
+    $leaf = $Ns.Split('/')[-1]
     try {
-        $g = Invoke-GitLabApi GET "/groups/$([Uri]::EscapeDataString($Ns))" -BaseUrl $BaseUrl -Token $Token
+        $results = Invoke-GitLabApi GET "/namespaces?search=$([Uri]::EscapeDataString($leaf))" -BaseUrl $BaseUrl -Token $Token
+        $match = $results | Where-Object { $_.full_path -eq $Ns -or $_.path -eq $Ns } | Select-Object -First 1
+        if ($match) { return $match.id }
+    } catch { }
+
+    # Fall back: try group lookup by full path
+    try {
+        $encoded = $Ns -replace '/', '%2F'
+        $uri     = "$($BaseUrl.TrimEnd('/'))/api/v4/groups/$encoded"
+        $headers = @{ 'PRIVATE-TOKEN' = $Token }
+        $g = Invoke-WebRequest -Uri $uri -Headers $headers -UseBasicParsing | ConvertFrom-Json
         if ($g.id) { return $g.id }
     } catch { }
+
+    # Fall back: user namespace
     try {
         $u = Invoke-GitLabApi GET "/users?username=$([Uri]::EscapeDataString($Ns))" -BaseUrl $BaseUrl -Token $Token
         if ($u.Count -gt 0) { return $u[0].namespace_id }
     } catch { }
+
     return $null
 }
 
@@ -192,9 +208,7 @@ function Update-RepoNameFromZip {
         New-Item -ItemType Directory -Path $tmpDir | Out-Null
         Expand-Archive -Path $ZipPath -DestinationPath $tmpDir -Force
         $found = Get-ChildItem -Path $tmpDir -Directory | Select-Object -First 1
-        if ($found) {
-            $txtRepoName.Text = $found.Name -replace '\.git$', ''
-        }
+        if ($found) { $txtRepoName.Text = $found.Name -replace '\.git$', '' }
         Remove-Item -Recurse -Force $tmpDir -ErrorAction SilentlyContinue
     } catch { }
 }
@@ -213,9 +227,7 @@ $btnGitBrowse.Add_Click({
     $dlg = New-Object System.Windows.Forms.OpenFileDialog
     $dlg.Title  = 'Locate git.exe'
     $dlg.Filter = 'git.exe|git.exe|All executables (*.exe)|*.exe'
-    if ($dlg.ShowDialog() -eq 'OK') {
-        $txtGit.Text = $dlg.FileName
-    }
+    if ($dlg.ShowDialog() -eq 'OK') { $txtGit.Text = $dlg.FileName }
 })
 
 $btnImport.Add_Click({
@@ -237,8 +249,7 @@ $btnImport.Add_Click({
     if (-not $gitExe -or -not (Test-Path $gitExe)) { $errors += 'git.exe not found. Set the Git Path field.' }
 
     if ($errors.Count -gt 0) {
-        [System.Windows.Forms.MessageBox]::Show(($errors -join "`n"), 'Validation Error',
-            'OK', 'Warning') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show(($errors -join "`n"), 'Validation Error', 'OK', 'Warning') | Out-Null
         return
     }
 
@@ -260,13 +271,13 @@ $btnImport.Add_Click({
         $nsId = Resolve-NamespaceId -Ns $namespace -BaseUrl $gitLabUrl -Token $token
         if (-not $nsId) {
             AppendLog "ERROR: Could not resolve namespace '$namespace'." ([System.Drawing.Color]::Red)
+            AppendLog "Check that the namespace path is correct and your token has API access." ([System.Drawing.Color]::Yellow)
             $lblStatus.Text = 'Failed - namespace not found.'
             return
         }
         AppendLog "Namespace ID: $nsId" ([System.Drawing.Color]::Gray)
 
         $allDirs = @(Get-ChildItem -Path $extractedRoot -Directory)
-
         $dir = $allDirs | Where-Object {
             (Test-Path (Join-Path $_.FullName '.git')) -or
             ((Test-Path (Join-Path $_.FullName 'HEAD')) -and
@@ -277,9 +288,7 @@ $btnImport.Add_Click({
         $isWorkingTree = $false
         if (-not $dir) {
             $dir = $allDirs | Select-Object -First 1
-            if (-not $dir) {
-                $dir = [PSCustomObject]@{ FullName = $extractedRoot }
-            }
+            if (-not $dir) { $dir = [PSCustomObject]@{ FullName = $extractedRoot } }
             $isWorkingTree = $true
             AppendLog 'No git repo structure found - importing as new repo from source files.' ([System.Drawing.Color]::Yellow)
         }
