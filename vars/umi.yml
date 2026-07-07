@@ -1,0 +1,10 @@
+---
+# Required — pass these as Semaphore extra vars or set here
+subscription_id: ""        # Azure subscription ID
+mission_plane_name: ""     # Mission plane name  e.g. avd, netapp, backup
+location: "usgovvirginia" # Fixed — Azure US Government Virginia
+
+# Derived — do not override unless intentional
+# resource_group   = "rg-mp-{{ mission_plane_name }}-umi"
+# umi_name         = "umi-pdev-{{ mission_plane_name }}-iac"
+# assignment_scope = "/subscriptions/{{ subscription_id }}"

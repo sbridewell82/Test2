@@ -1,0 +1,138 @@
+---
+- name: Create Azure User Managed Identity with RBAC roles
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    uami_client_id:   "e8ea2483-8b75-4856-ae04-a53eaa9ef940"
+    umi_name:         "umi-pdev-{{ mission_plane_name }}-iac"
+    resource_group:   "rg-mp-{{ mission_plane_name }}-umi"
+    location:         "usgovvirginia"
+    assignment_scope: "/subscriptions/{{ subscription_id }}"
+    azure_config_dir: "/tmp/azure"
+    rbac_roles:
+      - "Application Group Contributor"
+      - "Backup Operator"
+      - "Desktop Virtualization Application Group Contributor"
+      - "Desktop Virtualization Host Pool Contributor"
+      - "Desktop Virtualization Workspace Contributor"
+      - "Key Vault Data Access Administrator"
+      - "MS-ISR: NetApp Contributor"
+      - "MS-ISR: Virtual Machine Contributor"
+      - "Network Contributor"
+      - "Reader"
+      - "MS-ISR: Recovery Services Contributor"
+      - "MS-ISR: Marketplace Ordering Contributor"
+
+  environment:
+    AZURE_CONFIG_DIR:                        "{{ azure_config_dir }}"
+    AZURE_CLI_DISABLE_CONNECTION_VERIFICATION: "1"
+    PYTHONWARNINGS:                          "ignore:Unverified HTTPS request"
+
+  pre_tasks:
+    - name: Validate mission_plane_name is provided
+      ansible.builtin.fail:
+        msg: "mission_plane_name must be provided via the Semaphore survey."
+      when: (mission_plane_name | default('')) == ''
+
+  tasks:
+    # ------------------------------------------------------------
+    # Authenticate
+    # ------------------------------------------------------------
+    - name: Login to Azure Government
+      ansible.builtin.shell: |
+        set -e
+        az cloud set --name AzureUSGovernment
+        az login --identity --client-id {{ uami_client_id }}
+        az account set --subscription {{ subscription_id }}
+      changed_when: false
+
+    # ------------------------------------------------------------
+    # Resource group
+    # ------------------------------------------------------------
+    - name: Create resource group if it does not exist
+      ansible.builtin.shell: |
+        set -e
+        RG_EXISTS=$(az group exists --name "{{ resource_group }}")
+        if [ "$RG_EXISTS" = "false" ]; then
+          az group create --name "{{ resource_group }}" --location "{{ location }}" > /dev/null
+          echo "CREATED"
+        else
+          echo "EXISTING"
+        fi
+      register: rg_result
+      changed_when: "'CREATED' in rg_result.stdout"
+
+    - name: Show resource group status
+      ansible.builtin.debug:
+        msg: >-
+          {{ 'Created new' if 'CREATED' in rg_result.stdout else 'Using existing' }}
+          resource group: {{ resource_group }}
+
+    # ------------------------------------------------------------
+    # User Managed Identity
+    # ------------------------------------------------------------
+    - name: Create User Managed Identity and get details
+      ansible.builtin.shell: |
+        EXISTING=$(az identity show \
+          --name "{{ umi_name }}" \
+          --resource-group "{{ resource_group }}" \
+          --query id --output tsv 2>/dev/null)
+        if [ -z "$EXISTING" ]; then
+          az identity create \
+            --name "{{ umi_name }}" \
+            --resource-group "{{ resource_group }}" \
+            --location "{{ location }}" > /dev/null
+          echo "CREATED" >&2
+        else
+          echo "EXISTING" >&2
+        fi
+        az identity show \
+          --name "{{ umi_name }}" \
+          --resource-group "{{ resource_group }}" \
+          --query "{principalId:principalId, clientId:clientId}" \
+          --output json
+      register: umi_result
+      changed_when: "'CREATED' in umi_result.stderr"
+
+    - name: Set UMI facts
+      ansible.builtin.set_fact:
+        umi_principal_id: "{{ (umi_result.stdout | from_json).principalId }}"
+        umi_client_id_new: "{{ (umi_result.stdout | from_json).clientId }}"
+
+    # ------------------------------------------------------------
+    # RBAC role assignments
+    # ------------------------------------------------------------
+    - name: Assign RBAC roles to UMI
+      ansible.builtin.shell: |
+        EXISTING=$(az role assignment list \
+          --assignee "{{ umi_principal_id }}" \
+          --role "{{ item }}" \
+          --scope "{{ assignment_scope }}" \
+          --query "[0].id" --output tsv 2>/dev/null)
+        if [ -z "$EXISTING" ]; then
+          az role assignment create \
+            --assignee "{{ umi_principal_id }}" \
+            --role "{{ item }}" \
+            --scope "{{ assignment_scope }}" > /dev/null
+          echo "ASSIGNED"
+        else
+          echo "EXISTING"
+        fi
+      loop: "{{ rbac_roles }}"
+      register: role_results
+      changed_when: "'ASSIGNED' in role_results.stdout"
+
+    # ------------------------------------------------------------
+    # Summary
+    # ------------------------------------------------------------
+    - name: Display summary
+      ansible.builtin.debug:
+        msg:
+          - "UMI Name      : {{ umi_name }}"
+          - "Resource Group: {{ resource_group }}"
+          - "Principal ID  : {{ umi_principal_id }}"
+          - "Client ID     : {{ umi_client_id_new }}"
+          - "Roles assigned: {{ role_results.results | selectattr('stdout', 'search', 'ASSIGNED') | map(attribute='item') | list }}"
+          - "Roles existing: {{ role_results.results | selectattr('stdout', 'search', 'EXISTING') | map(attribute='item') | list }}"
